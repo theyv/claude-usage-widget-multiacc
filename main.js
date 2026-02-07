@@ -151,10 +151,7 @@ function createTray() {
 
 // IPC Handlers
 ipcMain.handle('get-credentials', () => {
-  return {
-    sessionKey: store.get('sessionKey'),
-    organizationId: store.get('organizationId')
-  };
+  return store.get('accounts') || [];
 });
 
 ipcMain.handle('save-credentials', async (event, { sessionKey, organizationId }) => {

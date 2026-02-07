@@ -16,7 +16,7 @@
         "Verify storage migration using puppeteer mcp"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },

@@ -26,6 +26,9 @@ Branch: dalph/multi-account-support
 - UI uses vanilla JS and CSS in `src/renderer/`
 - Session cookie management via `session.defaultSession.cookies`
 - Window resizing via `ipcMain.on('resize-window')`
+- **Storage Migration Pattern** -> Migrations should be idempotent - check if migration already done before attempting
+- **electron-store Encryption** -> Encryption key must match exactly between test and production code
+- **Timestamp IDs** -> Using `Date.now().toString()` provides simple unique IDs without UUID libraries
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`
