@@ -29,6 +29,7 @@ Branch: dalph/multi-account-support
 - **Storage Migration Pattern** -> Migrations should be idempotent - check if migration already done before attempting
 - **electron-store Encryption** -> Encryption key must match exactly between test and production code
 - **Timestamp IDs** -> Using `Date.now().toString()` provides simple unique IDs without UUID libraries
+- **Account Object Structure** -> Each account has: `id`, `sessionKey`, `organizationId`, `nickname` (nullable)
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

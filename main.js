@@ -28,7 +28,18 @@ app.on('ready', () => {
 });
 
 // Set sessionKey as a cookie in Electron's session
+// Explicitly clears any existing sessionKey cookie before setting the new one
+// to prevent cross-account data leakage when switching between accounts
 async function setSessionCookie(sessionKey) {
+  // Clear any existing sessionKey cookie to prevent cross-account data leakage
+  try {
+    await session.defaultSession.cookies.remove('https://claude.ai', 'sessionKey');
+    debugLog('Cleared existing sessionKey cookie');
+  } catch (e) {
+    // Ignore if cookie doesn't exist
+  }
+
+  // Set the new sessionKey cookie
   await session.defaultSession.cookies.set({
     url: 'https://claude.ai',
     name: 'sessionKey',

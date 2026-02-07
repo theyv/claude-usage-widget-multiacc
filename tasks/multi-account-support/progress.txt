@@ -38,3 +38,19 @@ Started: 2026-02-07 18:22
 - [electron-store Pattern] -> When using electron-store with encryption, encryption key must match exactly between test and production code for tests to work correctly
 - [Timestamp IDs] -> Using `Date.now().toString()` provides simple unique IDs suitable for account objects without requiring external UUID libraries
 ---
+
+## [2026-02-07T18:31:00Z] - US-002 ✅ SUCCESS
+**Title:** Update main process IPC for account list
+
+### Changes
+- Updated [`ipcMain.handle('get-credentials', ...)`](main.js:153) to return `store.get('accounts') || []` instead of old single-account object format
+
+### Files
+- [`main.js`](main.js:153) - Modified get-credentials IPC handler
+
+### Test Tools Created
+- [`tasks/multi-account-support/test_tools/verify_get_credentials.js`](tasks/multi-account-support/test_tools/verify_get_credentials.js)
+
+### Learnings
+- [IPC Handler Return Format] -> The [`get-credentials`](main.js:153) handler now returns an array of account objects instead of a single object with `sessionKey` and `organizationId` properties. Each account object contains: `id`, `sessionKey`, `organizationId`, and `nickname` (nullable).
+---
