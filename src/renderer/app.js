@@ -29,6 +29,7 @@ const elements = {
     nextStepBtn: document.getElementById('nextStepBtn'),
     backStepBtn: document.getElementById('backStepBtn'),
     sessionKeyInput: document.getElementById('sessionKeyInput'),
+    nicknameInput: document.getElementById('nicknameInput'),
     connectBtn: document.getElementById('connectBtn'),
     sessionKeyError: document.getElementById('sessionKeyError'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -161,6 +162,8 @@ function setupEventListeners() {
 // Handle manual sessionKey connect
 async function handleConnect() {
     const sessionKey = elements.sessionKeyInput.value.trim();
+    const nickname = elements.nicknameInput.value.trim();
+    
     if (!sessionKey) {
         elements.sessionKeyError.textContent = 'Please paste your session key';
         return;
@@ -173,9 +176,10 @@ async function handleConnect() {
     try {
         const result = await window.electronAPI.validateSessionKey(sessionKey);
         if (result.success) {
-            credentials = { sessionKey, organizationId: result.organizationId };
+            credentials = { sessionKey, organizationId: result.organizationId, nickname: nickname || null };
             await window.electronAPI.saveCredentials(credentials);
             elements.sessionKeyInput.value = '';
+            elements.nicknameInput.value = '';
             showMainContent();
             await fetchUsageData();
             startAutoUpdate();
@@ -531,6 +535,7 @@ function showLoginRequired() {
     elements.loginStep2.style.display = 'none';
     elements.sessionKeyError.textContent = '';
     elements.sessionKeyInput.value = '';
+    elements.nicknameInput.value = '';
     stopAutoUpdate();
 }
 

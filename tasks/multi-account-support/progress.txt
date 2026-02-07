@@ -57,6 +57,31 @@ Started: 2026-02-07 18:22
 
 ### Learnings
 - Environment/Tooling -> npm run build fails on Windows due to electron-builder code signing requiring symbolic link privileges. Use `node -c main.js` for syntax verification instead as a workaround.
+### Learnings
+- **Account Lookup Pattern** -> When working with accounts array, use `accounts.find(acc => acc.id === accountId)` to retrieve a specific account by ID
+- **Credential Extraction** -> Use destructuring `const { sessionKey, organizationId } = account;` to extract credentials from account objects
+- **Error Handling** -> Always validate that account exists and has required credentials before proceeding with API requests
+
+## [2026-02-07T18:38:00Z] - US-004 ✅ SUCCESS
+**Title:** Parameterize usage fetching by account
+
+### Changes
+- Modified [`fetch-usage-data`](main.js:313) IPC handler in [`main.js`](main.js) to accept an `accountId` parameter
+- The handler now retrieves accounts array from storage and finds account matching provided ID
+- Extracts `sessionKey` and `organizationId` from the found account
+- Maintains existing session cookie setting behavior before making API request
+- Added proper error handling for non-existent accounts
+
+### Files
+- [`main.js`](main.js) (modified)
+
+### Test Tools Created
+- [`tasks/multi-account-support/test_tools/verify_fetch_usage_parameterization.js`](tasks/multi-account-support/test_tools/verify_fetch_usage_parameterization.js) - Test script to verify account lookup and credential extraction
+
+### Learnings
+- **Account Lookup Pattern** -> When working with accounts array, use `accounts.find(acc => acc.id === accountId)` to retrieve a specific account by ID
+- **Credential Extraction** -> Use destructuring `const { sessionKey, organizationId } = account;` to extract credentials from account objects
+- **Error Handling** -> Always validate that account exists and has required credentials before proceeding with API requests
 ---
 
 ## [2026-02-07T18:31:00Z] - US-002 ✅ SUCCESS

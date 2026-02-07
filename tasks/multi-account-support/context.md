@@ -31,6 +31,9 @@ Branch: dalph/multi-account-support
 - **Timestamp IDs** -> Using `Date.now().toString()` provides simple unique IDs without UUID libraries
 - **Account Object Structure** -> Each account has: `id`, `sessionKey`, `organizationId`, `nickname` (nullable)
 - **Cookie Isolation Pattern** -> Always clear existing sessionKey cookie before setting new one to prevent cross-account data leakage
+- **Account Lookup Pattern** -> Use `accounts.find(acc => acc.id === accountId)` to retrieve a specific account by ID
+- **Credential Extraction** -> Use destructuring `const { sessionKey, organizationId } = account;` to extract credentials from account objects
+- **Error Handling** -> Always validate that account exists and has required credentials before proceeding with API requests
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`
