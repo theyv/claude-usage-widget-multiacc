@@ -30,6 +30,7 @@ Branch: dalph/multi-account-support
 - **electron-store Encryption** -> Encryption key must match exactly between test and production code
 - **Timestamp IDs** -> Using `Date.now().toString()` provides simple unique IDs without UUID libraries
 - **Account Object Structure** -> Each account has: `id`, `sessionKey`, `organizationId`, `nickname` (nullable)
+- **Cookie Isolation Pattern** -> Always clear existing sessionKey cookie before setting new one to prevent cross-account data leakage
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

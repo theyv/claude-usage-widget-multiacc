@@ -37,6 +37,26 @@ Started: 2026-02-07 18:22
 - [Storage Migration Pattern] -> Storage migrations should be idempotent - check if migration has already been done before attempting to migrate
 - [electron-store Pattern] -> When using electron-store with encryption, encryption key must match exactly between test and production code for tests to work correctly
 - [Timestamp IDs] -> Using `Date.now().toString()` provides simple unique IDs suitable for account objects without requiring external UUID libraries
+### Learnings
+- [Account Object Structure] -> Each account has: `id`, `sessionKey`, `organizationId`, `nickname` (nullable).
+
+## [2026-02-07T18:34:00Z] - US-003 ✅ SUCCESS
+**Title:** Update session cookie management
+
+### Changes
+- Updated setSessionCookie function in main.js to explicitly clear existing sessionKey cookie before setting new one, preventing cross-account data leakage
+- Added debug logging for cookie clearing operation
+- Added try-catch block around cookie removal to handle cases where cookie doesn't exist
+
+### Files
+- main.js (modified)
+- tasks/multi-account-support/test_tools/verify_session_cookie.js (created)
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_session_cookie.js
+
+### Learnings
+- Environment/Tooling -> npm run build fails on Windows due to electron-builder code signing requiring symbolic link privileges. Use `node -c main.js` for syntax verification instead as a workaround.
 ---
 
 ## [2026-02-07T18:31:00Z] - US-002 ✅ SUCCESS

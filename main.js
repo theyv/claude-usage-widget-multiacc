@@ -310,12 +310,21 @@ ipcMain.handle('detect-session-key', async () => {
   });
 });
 
-ipcMain.handle('fetch-usage-data', async () => {
-  const sessionKey = store.get('sessionKey');
-  const organizationId = store.get('organizationId');
+ipcMain.handle('fetch-usage-data', async (event, accountId) => {
+  // Get accounts array from storage
+  const accounts = store.get('accounts') || [];
+  
+  // Find the account with the specified ID
+  const account = accounts.find(acc => acc.id === accountId);
+  
+  if (!account) {
+    throw new Error('Account not found');
+  }
+
+  const { sessionKey, organizationId } = account;
 
   if (!sessionKey || !organizationId) {
-    throw new Error('Missing credentials');
+    throw new Error('Missing credentials for account');
   }
 
   // Ensure cookie is set
