@@ -1,0 +1,17 @@
+# Dalph Progress Log
+Task: multi-account-support
+Branch: dalph/multi-account-support
+Started: 2026-02-07 18:22
+
+---
+
+## Codebase Patterns
+- Electron app with `electron-store` for persistence.
+- IPC communication between `main.js` and `src/renderer/app.js`.
+- Usage data fetched via `src/fetch-via-window.js` to bypass Cloudflare.
+- UI uses vanilla JS and CSS in `src/renderer/`.
+
+---
+
+## Implementation Log
+- [2026-02-07] PRD created and converted to JSON with 11 granular user stories.

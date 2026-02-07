@@ -336,12 +336,53 @@ ipcMain.handle('fetch-usage-data', async () => {
   }
 });
 
+// Migration: Migrate single-account storage to accounts array
+function migrateStorage() {
+  // Check if migration has already been done
+  const accounts = store.get('accounts');
+  if (accounts) {
+    debugLog('Storage already migrated to accounts array');
+    return;
+  }
+
+  // Check for legacy single-account storage
+  const sessionKey = store.get('sessionKey');
+  const organizationId = store.get('organizationId');
+
+  if (sessionKey && organizationId) {
+    debugLog('Migrating legacy single-account storage to accounts array');
+    
+    // Create accounts array with migrated account
+    const migratedAccounts = [{
+      id: Date.now().toString(), // Unique ID based on timestamp
+      sessionKey: sessionKey,
+      organizationId: organizationId,
+      nickname: null // Will be populated later by user
+    }];
+
+    // Save new accounts array
+    store.set('accounts', migratedAccounts);
+
+    // Delete old keys
+    store.delete('sessionKey');
+    store.delete('organizationId');
+
+    debugLog('Storage migration completed:', JSON.stringify(migratedAccounts[0]));
+  } else {
+    debugLog('No legacy storage found, initializing empty accounts array');
+    store.set('accounts', []);
+  }
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
+  // Run storage migration first
+  migrateStorage();
+
   // Restore session cookie if we have stored credentials
-  const sessionKey = store.get('sessionKey');
-  if (sessionKey) {
-    await setSessionCookie(sessionKey);
+  const accounts = store.get('accounts');
+  if (accounts && accounts.length > 0) {
+    await setSessionCookie(accounts[0].sessionKey);
   }
 
   createMainWindow();
