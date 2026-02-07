@@ -123,6 +123,47 @@ Started: 2026-02-07 18:22
 
 ---
 
+## [2026-02-07T19:00:34.000Z] - US-007 ✅ SUCCESS
+**Title:** Render multiple account sections in UI
+
+### Changes
+- Modified [`src/renderer/index.html`](src/renderer/index.html) to replace static usage sections with dynamic `accountsContainer` div
+- Modified [`src/renderer/app.js`](src/renderer/app.js) to implement multi-account rendering:
+  - Changed state from single `credentials` object to `accounts` array
+  - Changed `latestUsageData` from single object to map of accountId -> usage data
+  - Added `ACCOUNT_SECTION_HEIGHT` constant
+  - Updated DOM elements to include `accountsContainer`
+  - Updated `init()` to get accounts array and call `renderAccounts()` and `fetchAllUsageData()`
+  - Updated `fetchUsageData()` to take `accountId` parameter
+  - Added `fetchAllUsageData()` function to fetch data for all accounts
+  - Added `renderAccounts()` function to dynamically create account sections with nickname headers
+  - Added `updateAccountUI()` function to update UI for specific account
+  - Added `buildExtraRowsForAccount()` function to build extra rows for specific account
+  - Added `refreshExtraTimersForAccount()` function to refresh timers for specific account
+  - Updated `handleConnect()` and `handleAutoDetect()` to work with accounts array
+  - Updated refresh button, session expired handler, and logout handler
+  - Updated `refreshTimers()` to iterate through all accounts
+  - Updated `startCountdown()` to refresh extra timers for all expanded accounts
+  - Updated `startAutoUpdate()` to call `fetchAllUsageData()`
+  - Updated `resizeWidget()` to calculate height for multiple accounts
+  - Removed deprecated functions that referenced non-existent elements
+- Modified [`src/renderer/styles.css`](src/renderer/styles.css) to add styles for account sections (.account-section, .account-header, .account-nickname)
+
+### Files
+- src/renderer/index.html
+- src/renderer/app.js
+- src/renderer/styles.css
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_multi_account_rendering.js
+
+### Learnings
+- [Architecture/Business Logic] -> The app now uses an accounts array instead of a single credentials object. Each account has its own ID, sessionKey, organizationId, and optional nickname. Usage data is stored as a map keyed by accountId.
+- [UI/DOM Structure] -> Account sections are dynamically generated with unique IDs using `account-${account.id}` pattern. Each section contains header with nickname, session/weekly usage sections, expand toggle, and expandable details.
+- [Per-Account State] -> Each account can be independently expanded/collapsed. The expand toggle uses `data-account-id` attribute to identify which account to expand.
+
+---
+
 ## [2026-02-07T18:43:26.000Z] - US-005 ✅ SUCCESS
 **Title:** Add Nickname field to Login UI
 

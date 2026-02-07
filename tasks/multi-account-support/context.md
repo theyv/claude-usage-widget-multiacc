@@ -37,6 +37,9 @@ Branch: dalph/multi-account-support
 - **UI Input Field Pattern** -> When adding optional input fields, use placeholder text like "(optional)" to indicate field is not required
 - **Credentials Object Pattern** -> When adding optional fields to credentials, use null fallback (e.g., `nickname: nickname || null`) to maintain consistency with existing patterns
 - **IPC Response Pattern** -> Return structured objects with `success` boolean and either `account` (on success) or `error` (on failure) instead of simple boolean values to provide better feedback to renderer
+- **Multi-Account Architecture** -> App uses accounts array with each account having id, sessionKey, organizationId, and optional nickname. Usage data stored as map keyed by accountId
+- **Dynamic DOM Generation** -> Account sections generated with unique IDs using `account-${account.id}` pattern. Each section has nickname header, usage sections, expand toggle, and expandable details
+- **Per-Account State** -> Each account independently expandable/collapsible. Expand toggle uses `data-account-id` attribute to identify which account to expand
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

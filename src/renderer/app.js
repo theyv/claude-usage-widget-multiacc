@@ -495,9 +495,9 @@ function resizeWidget() {
     window.electronAPI.resizeWindow(totalHeight);
 }
 
-// Track if we've already triggered a refresh for expired timers
-let sessionResetTriggered = false;
-let weeklyResetTriggered = false;
+// Track if we've already triggered a refresh for expired timers (per-account)
+const sessionResetTriggered = {}; // Map of accountId -> boolean
+const weeklyResetTriggered = {}; // Map of accountId -> boolean
 
 function refreshTimers() {
     if (!latestUsageData) return;
@@ -514,14 +514,14 @@ function refreshTimers() {
         // Check if session timer has expired and we need to refresh
         if (sessionResetsAt) {
             const sessionDiff = new Date(sessionResetsAt) - new Date();
-            if (sessionDiff <= 0 && !sessionResetTriggered) {
-                sessionResetTriggered = true;
+            if (sessionDiff <= 0 && !sessionResetTriggered[accountId]) {
+                sessionResetTriggered[accountId] = true;
                 debugLog('Session timer expired for account', accountId, ', triggering refresh...');
                 setTimeout(() => {
                     fetchUsageData(accountId);
                 }, 3000);
             } else if (sessionDiff > 0) {
-                sessionResetTriggered = false;
+                sessionResetTriggered[accountId] = false;
             }
         }
 
@@ -532,14 +532,14 @@ function refreshTimers() {
         // Check if weekly timer has expired and we need to refresh
         if (weeklyResetsAt) {
             const weeklyDiff = new Date(weeklyResetsAt) - new Date();
-            if (weeklyDiff <= 0 && !weeklyResetTriggered) {
-                weeklyResetTriggered = true;
+            if (weeklyDiff <= 0 && !weeklyResetTriggered[accountId]) {
+                weeklyResetTriggered[accountId] = true;
                 debugLog('Weekly timer expired for account', accountId, ', triggering refresh...');
                 setTimeout(() => {
                     fetchUsageData(accountId);
                 }, 3000);
             } else if (weeklyDiff > 0) {
-                weeklyResetTriggered = false;
+                weeklyResetTriggered[accountId] = false;
             }
         }
     }
