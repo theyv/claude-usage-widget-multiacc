@@ -205,6 +205,37 @@ Started: 2026-02-07 18:22
 
 ---
 
+## [2026-02-07T19:23:14.000Z] - US-010 ✅ SUCCESS
+**Title:** Account management in Settings
+
+### Changes
+- Added `remove-account` IPC handler in main.js that removes account by ID and clears session cookie
+- Exposed `removeAccount` function in preload.js for renderer process
+- Updated settings overlay HTML in index.html to include accounts list container, section title, and "Add Another Account" button
+- Added `renderSettingsAccounts()` function in app.js to dynamically render accounts with nicknames and remove buttons
+- Added `handleRemoveAccount()` function in app.js to handle account removal via IPC
+- Added event listener for "Add Another Account" button to open login modal
+- Added CSS styles for account management UI (account items, remove buttons, add account button, section titles)
+
+### Files
+- main.js (added remove-account IPC handler)
+- preload.js (exposed removeAccount function)
+- src/renderer/index.html (updated settings overlay HTML)
+- src/renderer/app.js (added renderSettingsAccounts, handleRemoveAccount, event listeners)
+- src/renderer/styles.css (added account management styles)
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_account_management_settings.js (comprehensive test tool for verifying account management UI and functionality)
+
+### Learnings
+- [Electron IPC Pattern] - Account removal requires both removing from accounts array AND clearing session cookie (session.clearStorage() with domain set to 'https://claude.ai')
+- [UI State Management] - Settings overlay uses renderSettingsAccounts() to refresh account list dynamically when opened
+- [Conditional Button Visibility] - "Add Another Account" button visibility is controlled by CSS display property based on account count (< 2)
+- [Event Handler Pattern] - Remove buttons use event delegation with data-account-id attribute to identify which account to remove
+- [Browser Testing Limitation] - Full end-to-end testing with actual accounts requires running Electron app; testing with source HTML only verifies UI structure not full functionality
+
+---
+
 ## [2026-02-07T18:43:26.000Z] - US-005 ✅ SUCCESS
 **Title:** Add Nickname field to Login UI
 

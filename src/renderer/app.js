@@ -4,6 +4,7 @@ let updateInterval = null;
 let countdownInterval = null;
 let latestUsageData = {}; // Map of accountId -> usage data
 let isExpanded = false;
+let expiredAccounts = {}; // Map of accountId -> boolean (true if expired)
 const UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const WIDGET_HEIGHT_COLLAPSED = 140;
 const WIDGET_ROW_HEIGHT = 30;
@@ -165,18 +166,58 @@ async function handleConnect() {
     try {
         const result = await window.electronAPI.validateSessionKey(sessionKey);
         if (result.success) {
-            const newAccount = { sessionKey, organizationId: result.organizationId, nickname: nickname || null };
-            const saveResult = await window.electronAPI.saveCredentials(newAccount);
-            if (saveResult.success) {
-                accounts.push(saveResult.account);
-                elements.sessionKeyInput.value = '';
-                elements.nicknameInput.value = '';
-                showMainContent();
-                renderAccounts();
-                await fetchUsageData(saveResult.account.id);
-                startAutoUpdate();
+            // Check if this is a reconnection
+            const reconnectingAccountId = window.reconnectingAccountId;
+            
+            if (reconnectingAccountId) {
+                // Update existing account's credentials
+                const accountIndex = accounts.findIndex(acc => acc.id === reconnectingAccountId);
+                if (accountIndex !== -1) {
+                    const updatedAccount = {
+                        ...accounts[accountIndex],
+                        sessionKey: sessionKey,
+                        organizationId: result.organizationId,
+                        nickname: nickname || accounts[accountIndex].nickname
+                    };
+                    
+                    // Update the account in storage via main process
+                    const saveResult = await window.electronAPI.saveCredentials(updatedAccount);
+                    if (saveResult.success) {
+                        // Update local state
+                        accounts[accountIndex] = saveResult.account;
+                        
+                        // Clear expired state
+                        if (expiredAccounts[reconnectingAccountId]) {
+                            delete expiredAccounts[reconnectingAccountId];
+                        }
+                        
+                        // Clear reconnecting flag
+                        window.reconnectingAccountId = null;
+                        
+                        elements.sessionKeyInput.value = '';
+                        elements.nicknameInput.value = '';
+                        showMainContent();
+                        renderAccounts();
+                        await fetchUsageData(saveResult.account.id);
+                    } else {
+                        elements.sessionKeyError.textContent = saveResult.error || 'Failed to update account';
+                    }
+                }
             } else {
-                elements.sessionKeyError.textContent = saveResult.error || 'Failed to save account';
+                // New account connection
+                const newAccount = { sessionKey, organizationId: result.organizationId, nickname: nickname || null };
+                const saveResult = await window.electronAPI.saveCredentials(newAccount);
+                if (saveResult.success) {
+                    accounts.push(saveResult.account);
+                    elements.sessionKeyInput.value = '';
+                    elements.nicknameInput.value = '';
+                    showMainContent();
+                    renderAccounts();
+                    await fetchUsageData(saveResult.account.id);
+                    startAutoUpdate();
+                } else {
+                    elements.sessionKeyError.textContent = saveResult.error || 'Failed to save account';
+                }
             }
         } else {
             elements.sessionKeyError.textContent = result.error || 'Invalid session key';
@@ -242,17 +283,18 @@ async function fetchUsageData(accountId) {
         const data = await window.electronAPI.fetchUsageData(accountId);
         debugLog('Received usage data for account', accountId, ':', data);
         latestUsageData[accountId] = data;
+        // Clear expired state if fetch succeeds
+        if (expiredAccounts[accountId]) {
+            delete expiredAccounts[accountId];
+        }
         updateAccountUI(accountId, data);
     } catch (error) {
         console.error('Error fetching usage data for account', accountId, ':', error);
         if (error.message.includes('SessionExpired') || error.message.includes('Unauthorized')) {
-            // Remove expired account from local state
-            accounts = accounts.filter(acc => acc.id !== accountId);
-            if (accounts.length === 0) {
-                showLoginRequired();
-            } else {
-                renderAccounts();
-            }
+            // Mark account as expired instead of removing it
+            expiredAccounts[accountId] = true;
+            debugLog('Account marked as expired:', accountId);
+            updateAccountExpiredUI(accountId);
         } else {
             debugLog('Failed to fetch usage data for account', accountId);
         }
@@ -273,14 +315,23 @@ function renderAccounts() {
     
     accounts.forEach(account => {
         const accountSection = document.createElement('div');
-        accountSection.className = 'account-section';
+        const isExpired = expiredAccounts[account.id];
+        accountSection.className = `account-section ${isExpired ? 'expired' : ''}`;
         accountSection.id = `account-${account.id}`;
         accountSection.innerHTML = `
             <!-- Account Header -->
             <div class="account-header">
                 <span class="account-nickname">${account.nickname || 'Account'}</span>
+                ${isExpired ? '<span class="expired-badge">Expired</span>' : ''}
             </div>
             
+            ${isExpired ? `
+            <!-- Expired State -->
+            <div class="expired-state">
+                <p class="expired-message">Session expired. Please reconnect to view usage data.</p>
+                <button class="reconnect-btn" data-account-id="${account.id}">Reconnect</button>
+            </div>
+            ` : `
             <!-- Session Usage -->
             <div class="usage-section">
                 <span class="usage-label">Current Session</span>
@@ -315,8 +366,10 @@ function renderAccounts() {
                 </div>
             </div>
 
+            `}
+            
             <!-- Expand Toggle -->
-            <div class="expand-toggle expand-toggle-${account.id}" data-account-id="${account.id}">
+            <div class="expand-toggle expand-toggle-${account.id}" data-account-id="${account.id}" style="display: ${isExpired ? 'none' : 'flex'}">
                 <svg class="expand-arrow expand-arrow-${account.id}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9" />
                 </svg>
@@ -330,21 +383,101 @@ function renderAccounts() {
         
         elements.accountsContainer.appendChild(accountSection);
         
+        // Add event listener for reconnect button if account is expired
+        if (isExpired) {
+            const reconnectBtn = accountSection.querySelector('.reconnect-btn');
+            reconnectBtn.addEventListener('click', () => handleReconnect(account.id));
+        }
+        
         // Add event listener for expand toggle
         const expandToggle = accountSection.querySelector(`.expand-toggle-${account.id}`);
-        expandToggle.addEventListener('click', () => {
+        if (expandToggle) {
+            expandToggle.addEventListener('click', () => {
             const accountId = expandToggle.dataset.accountId;
             const arrow = accountSection.querySelector(`.expand-arrow-${accountId}`);
-            const section = accountSection.querySelector(`.expand-section-${accountId}`);
-            const isExpanded = arrow.classList.contains('expanded');
-            
-            arrow.classList.toggle('expanded', !isExpanded);
-            section.style.display = !isExpanded ? 'block' : 'none';
-            resizeWidget();
-        });
+                const section = accountSection.querySelector(`.expand-section-${accountId}`);
+                const isExpanded = arrow.classList.contains('expanded');
+                
+                arrow.classList.toggle('expanded', !isExpanded);
+                section.style.display = !isExpanded ? 'block' : 'none';
+                resizeWidget();
+            });
+        }
     });
     
     resizeWidget();
+}
+
+// Update UI for expired account
+function updateAccountExpiredUI(accountId) {
+    const accountSection = document.getElementById(`account-${accountId}`);
+    if (!accountSection) return;
+    
+    // Add expired class to section
+    accountSection.classList.add('expired');
+    
+    // Hide expand toggle
+    const expandToggle = accountSection.querySelector('.expand-toggle');
+    if (expandToggle) {
+        expandToggle.style.display = 'none';
+    }
+    
+    // Hide expand section
+    const expandSection = accountSection.querySelector('.expand-section');
+    if (expandSection) {
+        expandSection.style.display = 'none';
+    }
+    
+    // Add expired state content
+    const accountHeader = accountSection.querySelector('.account-header');
+    const existingBadge = accountHeader.querySelector('.expired-badge');
+    if (!existingBadge) {
+        const badge = document.createElement('span');
+        badge.className = 'expired-badge';
+        badge.textContent = 'Expired';
+        accountHeader.appendChild(badge);
+    }
+    
+    // Remove existing usage sections and add expired state
+    const usageSections = accountSection.querySelectorAll('.usage-section');
+    usageSections.forEach(section => section.remove());
+    
+    // Check if expired state already exists
+    let expiredState = accountSection.querySelector('.expired-state');
+    if (!expiredState) {
+        expiredState = document.createElement('div');
+        expiredState.className = 'expired-state';
+        expiredState.innerHTML = `
+            <p class="expired-message">Session expired. Please reconnect to view usage data.</p>
+            <button class="reconnect-btn" data-account-id="${accountId}">Reconnect</button>
+        `;
+        accountSection.appendChild(expiredState);
+        
+        // Add event listener for reconnect button
+        const reconnectBtn = expiredState.querySelector('.reconnect-btn');
+        reconnectBtn.addEventListener('click', () => handleReconnect(accountId));
+    }
+}
+
+// Handle reconnection for expired account
+async function handleReconnect(accountId) {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) return;
+    
+    // Show login step 2 for this account
+    elements.settingsOverlay.style.display = 'none';
+    showLoginRequired();
+    
+    // Pre-fill session key input with the account's session key
+    elements.sessionKeyInput.value = account.sessionKey;
+    
+    // Pre-fill nickname if available
+    if (account.nickname) {
+        elements.nicknameInput.value = account.nickname;
+    }
+    
+    // Store the account ID being reconnected for later use
+    window.reconnectingAccountId = accountId;
 }
 
 // Update UI for a specific account

@@ -147,7 +147,7 @@
         "Verify account removal using puppeteer mcp"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },

@@ -899,3 +899,50 @@ body {
 .timer-progress.danger {
     stroke: #ef4444;
 }
+
+/* Expired Account State */
+.account-section.expired {
+    opacity: 0.7;
+}
+
+.account-section.expired .account-header {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.expired-badge {
+    background: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.expired-state {
+    padding: 20px 16px;
+    text-align: center;
+}
+
+.expired-message {
+    color: #ef4444;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.reconnect-btn {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.reconnect-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}

@@ -22,10 +22,7 @@ let tray = null;
 const WIDGET_WIDTH = 480;
 const WIDGET_HEIGHT = 140;
 
-// Set session-level User-Agent to avoid Electron detection
-app.on('ready', () => {
-  session.defaultSession.setUserAgent(CHROME_USER_AGENT);
-});
+
 
 // Set sessionKey as a cookie in Electron's session
 // Explicitly clears any existing sessionKey cookie before setting the new one
@@ -193,6 +190,36 @@ ipcMain.handle('save-credentials', async (event, { sessionKey, organizationId, n
   await setSessionCookie(sessionKey);
 
   return { success: true, account: newAccount };
+});
+
+// Update existing account credentials (for reconnection)
+ipcMain.handle('update-credentials', async (event, { id, sessionKey, organizationId, nickname }) => {
+  const accounts = store.get('accounts') || [];
+  
+  // Find account to update
+  const accountIndex = accounts.findIndex(acc => acc.id === id);
+  
+  if (accountIndex === -1) {
+    return { success: false, error: 'Account not found' };
+  }
+  
+  // Update account credentials
+  const updatedAccount = {
+    ...accounts[accountIndex],
+    sessionKey: sessionKey,
+    organizationId: organizationId,
+    nickname: nickname || accounts[accountIndex].nickname
+  };
+  
+  // Update accounts array
+  accounts[accountIndex] = updatedAccount;
+  store.set('accounts', accounts);
+  
+  // Set cookie in Electron session for window-based fetching
+  await setSessionCookie(sessionKey);
+  
+  debugLog('Account updated:', updatedAccount.id);
+  return { success: true, account: updatedAccount };
 });
 
 ipcMain.handle('delete-credentials', async () => {
