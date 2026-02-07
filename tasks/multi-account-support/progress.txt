@@ -100,6 +100,29 @@ Started: 2026-02-07 18:22
 - [IPC Handler Return Format] -> The [`get-credentials`](main.js:153) handler now returns an array of account objects instead of a single object with `sessionKey` and `organizationId` properties. Each account object contains: `id`, `sessionKey`, `organizationId`, and `nickname` (nullable).
 ---
 
+## [2026-02-07T18:47:09.000Z] - US-006 ✅ SUCCESS
+**Title:** Update save-credentials for multiple accounts
+
+### Changes
+- Updated [`ipcMain.handle('save-credentials', ...)`](main.js:168) in main.js to accept `nickname` parameter in addition to `sessionKey` and `organizationId`
+- Get existing accounts array from store
+- Check for duplicate accounts based on sessionKey before saving
+- Create new account object with unique ID (using `Date.now().toString()`), sessionKey, organizationId, and nickname
+- Append new account to accounts array and save to store
+- Return success status with account object, or error if duplicate detected
+- Still sets session cookie for window-based fetching
+
+### Files
+- main.js (modified)
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_save_credentials.js - Test script that verifies account appending, duplicate prevention, and account object structure
+
+### Learnings
+- [save-credentials Return Value Pattern] -> The handler now returns an object with `success` boolean and either `account` (on success) or `error` (on failure) instead of just returning `true`. This provides better feedback to the renderer about whether the save operation succeeded or failed due to duplicates.
+
+---
+
 ## [2026-02-07T18:43:26.000Z] - US-005 ✅ SUCCESS
 **Title:** Add Nickname field to Login UI
 

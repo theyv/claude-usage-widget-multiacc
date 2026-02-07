@@ -87,7 +87,7 @@
         "Typecheck/lint passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },

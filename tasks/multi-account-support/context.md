@@ -36,6 +36,7 @@ Branch: dalph/multi-account-support
 - **Error Handling** -> Always validate that account exists and has required credentials before proceeding with API requests
 - **UI Input Field Pattern** -> When adding optional input fields, use placeholder text like "(optional)" to indicate field is not required
 - **Credentials Object Pattern** -> When adding optional fields to credentials, use null fallback (e.g., `nickname: nickname || null`) to maintain consistency with existing patterns
+- **IPC Response Pattern** -> Return structured objects with `success` boolean and either `account` (on success) or `error` (on failure) instead of simple boolean values to provide better feedback to renderer
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

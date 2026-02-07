@@ -797,6 +797,32 @@ body {
     stroke: #f59e0b;
 }
 
+/* Account Section */
+.account-section {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-section:last-child {
+    border-bottom: none;
+}
+
+/* Account Header */
+.account-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e8e8e0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.account-nickname {
+    font-family: 'Libre Baskerville', serif;
+}
+
 .timer-progress.danger {
     stroke: #ef4444;
 }

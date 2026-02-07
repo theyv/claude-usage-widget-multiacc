@@ -1,12 +1,13 @@
 // Application state
-let credentials = null;
+let accounts = [];
 let updateInterval = null;
 let countdownInterval = null;
-let latestUsageData = null;
+let latestUsageData = {}; // Map of accountId -> usage data
 let isExpanded = false;
 const UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const WIDGET_HEIGHT_COLLAPSED = 140;
 const WIDGET_ROW_HEIGHT = 30;
+const ACCOUNT_SECTION_HEIGHT = 140; // Height per account section
 
 // Debug logging — only shows in DevTools (development mode).
 // Regular users won't see verbose logs in production.
@@ -21,6 +22,7 @@ const elements = {
     loginContainer: document.getElementById('loginContainer'),
     noUsageContainer: document.getElementById('noUsageContainer'),
     mainContent: document.getElementById('mainContent'),
+    accountsContainer: document.getElementById('accountsContainer'),
     loginStep1: document.getElementById('loginStep1'),
     loginStep2: document.getElementById('loginStep2'),
     autoDetectBtn: document.getElementById('autoDetectBtn'),
@@ -36,21 +38,6 @@ const elements = {
     minimizeBtn: document.getElementById('minimizeBtn'),
     closeBtn: document.getElementById('closeBtn'),
 
-    sessionPercentage: document.getElementById('sessionPercentage'),
-    sessionProgress: document.getElementById('sessionProgress'),
-    sessionTimer: document.getElementById('sessionTimer'),
-    sessionTimeText: document.getElementById('sessionTimeText'),
-
-    weeklyPercentage: document.getElementById('weeklyPercentage'),
-    weeklyProgress: document.getElementById('weeklyProgress'),
-    weeklyTimer: document.getElementById('weeklyTimer'),
-    weeklyTimeText: document.getElementById('weeklyTimeText'),
-
-    expandToggle: document.getElementById('expandToggle'),
-    expandArrow: document.getElementById('expandArrow'),
-    expandSection: document.getElementById('expandSection'),
-    extraRows: document.getElementById('extraRows'),
-
     settingsBtn: document.getElementById('settingsBtn'),
     settingsOverlay: document.getElementById('settingsOverlay'),
     closeSettingsBtn: document.getElementById('closeSettingsBtn'),
@@ -61,11 +48,12 @@ const elements = {
 // Initialize
 async function init() {
     setupEventListeners();
-    credentials = await window.electronAPI.getCredentials();
+    accounts = await window.electronAPI.getCredentials();
 
-    if (credentials.sessionKey && credentials.organizationId) {
+    if (accounts && accounts.length > 0) {
         showMainContent();
-        await fetchUsageData();
+        renderAccounts();
+        await fetchAllUsageData();
         startAutoUpdate();
     } else {
         showLoginRequired();
@@ -106,7 +94,7 @@ function setupEventListeners() {
     elements.refreshBtn.addEventListener('click', async () => {
         debugLog('Refresh button clicked');
         elements.refreshBtn.classList.add('spinning');
-        await fetchUsageData();
+        await fetchAllUsageData();
         elements.refreshBtn.classList.remove('spinning');
     });
 
@@ -118,13 +106,6 @@ function setupEventListeners() {
         window.electronAPI.closeWindow();
     });
 
-    // Expand/collapse toggle
-    elements.expandToggle.addEventListener('click', () => {
-        isExpanded = !isExpanded;
-        elements.expandArrow.classList.toggle('expanded', isExpanded);
-        elements.expandSection.style.display = isExpanded ? 'block' : 'none';
-        resizeWidget();
-    });
 
     // Settings calls
     elements.settingsBtn.addEventListener('click', () => {
@@ -137,7 +118,7 @@ function setupEventListeners() {
 
     elements.logoutBtn.addEventListener('click', async () => {
         await window.electronAPI.deleteCredentials();
-        credentials = { sessionKey: null, organizationId: null };
+        accounts = [];
         elements.settingsOverlay.style.display = 'none';
         showLoginRequired();
     });
@@ -148,13 +129,13 @@ function setupEventListeners() {
 
     // Listen for refresh requests from tray
     window.electronAPI.onRefreshUsage(async () => {
-        await fetchUsageData();
+        await fetchAllUsageData();
     });
 
     // Listen for session expiration events (403 errors)
     window.electronAPI.onSessionExpired(() => {
         debugLog('Session expired event received');
-        credentials = { sessionKey: null, organizationId: null };
+        accounts = [];
         showLoginRequired();
     });
 }
@@ -176,13 +157,19 @@ async function handleConnect() {
     try {
         const result = await window.electronAPI.validateSessionKey(sessionKey);
         if (result.success) {
-            credentials = { sessionKey, organizationId: result.organizationId, nickname: nickname || null };
-            await window.electronAPI.saveCredentials(credentials);
-            elements.sessionKeyInput.value = '';
-            elements.nicknameInput.value = '';
-            showMainContent();
-            await fetchUsageData();
-            startAutoUpdate();
+            const newAccount = { sessionKey, organizationId: result.organizationId, nickname: nickname || null };
+            const saveResult = await window.electronAPI.saveCredentials(newAccount);
+            if (saveResult.success) {
+                accounts.push(saveResult.account);
+                elements.sessionKeyInput.value = '';
+                elements.nicknameInput.value = '';
+                showMainContent();
+                renderAccounts();
+                await fetchUsageData(saveResult.account.id);
+                startAutoUpdate();
+            } else {
+                elements.sessionKeyError.textContent = saveResult.error || 'Failed to save account';
+            }
         } else {
             elements.sessionKeyError.textContent = result.error || 'Invalid session key';
         }
@@ -212,14 +199,20 @@ async function handleAutoDetect() {
         const validation = await window.electronAPI.validateSessionKey(result.sessionKey);
 
         if (validation.success) {
-            credentials = {
+            const newAccount = {
                 sessionKey: result.sessionKey,
                 organizationId: validation.organizationId
             };
-            await window.electronAPI.saveCredentials(credentials);
-            showMainContent();
-            await fetchUsageData();
-            startAutoUpdate();
+            const saveResult = await window.electronAPI.saveCredentials(newAccount);
+            if (saveResult.success) {
+                accounts.push(saveResult.account);
+                showMainContent();
+                renderAccounts();
+                await fetchUsageData(saveResult.account.id);
+                startAutoUpdate();
+            } else {
+                elements.autoDetectError.textContent = saveResult.error || 'Failed to save account';
+            }
         } else {
             elements.autoDetectError.textContent =
                 'Session invalid. Try again or use Manual →';
@@ -233,54 +226,170 @@ async function handleAutoDetect() {
 }
 
 // Fetch usage data from Claude API
-async function fetchUsageData() {
-    debugLog('fetchUsageData called');
-
-    if (!credentials.sessionKey || !credentials.organizationId) {
-        debugLog('Missing credentials, showing login');
-        showLoginRequired();
-        return;
-    }
+async function fetchUsageData(accountId) {
+    debugLog('fetchUsageData called for account:', accountId);
 
     try {
         debugLog('Calling electronAPI.fetchUsageData...');
-        const data = await window.electronAPI.fetchUsageData();
-        debugLog('Received usage data:', data);
-        updateUI(data);
+        const data = await window.electronAPI.fetchUsageData(accountId);
+        debugLog('Received usage data for account', accountId, ':', data);
+        latestUsageData[accountId] = data;
+        updateAccountUI(accountId, data);
     } catch (error) {
-        console.error('Error fetching usage data:', error);
+        console.error('Error fetching usage data for account', accountId, ':', error);
         if (error.message.includes('SessionExpired') || error.message.includes('Unauthorized')) {
-            credentials = { sessionKey: null, organizationId: null };
-            showLoginRequired();
+            // Remove expired account from local state
+            accounts = accounts.filter(acc => acc.id !== accountId);
+            if (accounts.length === 0) {
+                showLoginRequired();
+            } else {
+                renderAccounts();
+            }
         } else {
-            debugLog('Failed to fetch usage data');
+            debugLog('Failed to fetch usage data for account', accountId);
         }
     }
 }
 
-// Check if there's no usage data
-function hasNoUsage(data) {
+// Fetch usage data for all accounts
+async function fetchAllUsageData() {
+    debugLog('fetchAllUsageData called');
+    for (const account of accounts) {
+        await fetchUsageData(account.id);
+    }
+}
+
+// Render all account sections
+function renderAccounts() {
+    elements.accountsContainer.innerHTML = '';
+    
+    accounts.forEach(account => {
+        const accountSection = document.createElement('div');
+        accountSection.className = 'account-section';
+        accountSection.id = `account-${account.id}`;
+        accountSection.innerHTML = `
+            <!-- Account Header -->
+            <div class="account-header">
+                <span class="account-nickname">${account.nickname || 'Account'}</span>
+            </div>
+            
+            <!-- Session Usage -->
+            <div class="usage-section">
+                <span class="usage-label">Current Session</span>
+                <div class="progress-bar">
+                    <div class="progress-fill session-progress-${account.id}" style="width: 0%"></div>
+                </div>
+                <span class="usage-percentage session-percentage-${account.id}">0%</span>
+                <div class="timer-container">
+                    <div class="timer-text session-time-text-${account.id}">--:--</div>
+                    <svg class="mini-timer" width="24" height="24" viewBox="0 0 24 24">
+                        <circle class="timer-bg" cx="12" cy="12" r="10" />
+                        <circle class="timer-progress session-timer-${account.id}" cx="12" cy="12" r="10"
+                            style="stroke-dasharray: 63; stroke-dashoffset: 63" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Weekly Usage -->
+            <div class="usage-section">
+                <span class="usage-label">Weekly Limit</span>
+                <div class="progress-bar">
+                    <div class="progress-fill weekly weekly-progress-${account.id}" style="width: 0%"></div>
+                </div>
+                <span class="usage-percentage weekly-percentage-${account.id}">0%</span>
+                <div class="timer-container">
+                    <div class="timer-text weekly-time-text-${account.id}">--:--</div>
+                    <svg class="mini-timer" width="24" height="24" viewBox="0 0 24 24">
+                        <circle class="timer-bg" cx="12" cy="12" r="10" />
+                        <circle class="timer-progress weekly weekly-timer-${account.id}" cx="12" cy="12" r="10"
+                            style="stroke-dasharray: 63; stroke-dashoffset: 63" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Expand Toggle -->
+            <div class="expand-toggle expand-toggle-${account.id}" data-account-id="${account.id}">
+                <svg class="expand-arrow expand-arrow-${account.id}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9" />
+                </svg>
+            </div>
+
+            <!-- Expandable Details -->
+            <div class="expand-section expand-section-${account.id}" style="display: none;">
+                <div class="extra-rows-${account.id}"></div>
+            </div>
+        `;
+        
+        elements.accountsContainer.appendChild(accountSection);
+        
+        // Add event listener for expand toggle
+        const expandToggle = accountSection.querySelector(`.expand-toggle-${account.id}`);
+        expandToggle.addEventListener('click', () => {
+            const accountId = expandToggle.dataset.accountId;
+            const arrow = accountSection.querySelector(`.expand-arrow-${accountId}`);
+            const section = accountSection.querySelector(`.expand-section-${accountId}`);
+            const isExpanded = arrow.classList.contains('expanded');
+            
+            arrow.classList.toggle('expanded', !isExpanded);
+            section.style.display = !isExpanded ? 'block' : 'none';
+            resizeWidget();
+        });
+    });
+    
+    resizeWidget();
+}
+
+// Update UI for a specific account
+function updateAccountUI(accountId, data) {
+    if (hasNoUsage(data)) {
+        // For now, we'll still show the account section with 0% values
+        // Could add a "no usage" indicator later
+    }
+
+    // Session data
     const sessionUtilization = data.five_hour?.utilization || 0;
     const sessionResetsAt = data.five_hour?.resets_at;
+
+    const sessionProgress = document.querySelector(`.session-progress-${accountId}`);
+    const sessionPercentage = document.querySelector(`.session-percentage-${accountId}`);
+    const sessionTimer = document.querySelector(`.session-timer-${accountId}`);
+    const sessionTimeText = document.querySelector(`.session-time-text-${accountId}`);
+
+    if (sessionProgress && sessionPercentage && sessionTimer && sessionTimeText) {
+        updateProgressBar(sessionProgress, sessionPercentage, sessionUtilization);
+        updateTimer(sessionTimer, sessionTimeText, sessionResetsAt, 5 * 60);
+    }
+
+    // Weekly data
     const weeklyUtilization = data.seven_day?.utilization || 0;
     const weeklyResetsAt = data.seven_day?.resets_at;
 
-    return sessionUtilization === 0 && !sessionResetsAt &&
-        weeklyUtilization === 0 && !weeklyResetsAt;
+    const weeklyProgress = document.querySelector(`.weekly-progress-${accountId}`);
+    const weeklyPercentage = document.querySelector(`.weekly-percentage-${accountId}`);
+    const weeklyTimer = document.querySelector(`.weekly-timer-${accountId}`);
+    const weeklyTimeText = document.querySelector(`.weekly-time-text-${accountId}`);
+
+    if (weeklyProgress && weeklyPercentage && weeklyTimer && weeklyTimeText) {
+        updateProgressBar(weeklyProgress, weeklyPercentage, weeklyUtilization, true);
+        updateTimer(weeklyTimer, weeklyTimeText, weeklyResetsAt, 7 * 24 * 60);
+    }
+
+    // Build extra rows
+    buildExtraRowsForAccount(accountId, data);
+    
+    // Refresh timers for this account if expanded
+    const expandArrow = document.querySelector(`.expand-arrow-${accountId}`);
+    if (expandArrow && expandArrow.classList.contains('expanded')) {
+        refreshExtraTimersForAccount(accountId);
+    }
 }
 
-// Update UI with usage data
-// Extra row label mapping for API fields
-const EXTRA_ROW_CONFIG = {
-    seven_day_sonnet: { label: 'Sonnet (7d)', color: 'weekly' },
-    seven_day_opus: { label: 'Opus (7d)', color: 'opus' },
-    seven_day_cowork: { label: 'Cowork (7d)', color: 'weekly' },
-    seven_day_oauth_apps: { label: 'OAuth Apps (7d)', color: 'weekly' },
-    extra_usage: { label: 'Extra Usage', color: 'extra' },
-};
+// Build extra rows for a specific account
+function buildExtraRowsForAccount(accountId, data) {
+    const extraRowsContainer = document.querySelector(`.extra-rows-${accountId}`);
+    if (!extraRowsContainer) return;
 
-function buildExtraRows(data) {
-    elements.extraRows.innerHTML = '';
+    extraRowsContainer.innerHTML = '';
     let count = 0;
 
     for (const [key, config] of Object.entries(EXTRA_ROW_CONFIG)) {
@@ -300,38 +409,37 @@ function buildExtraRows(data) {
             </div>
             <span class="usage-percentage">${Math.round(utilization)}%</span>
             <div class="timer-container">
-                <div class="timer-text" data-resets="${resetsAt || ''}" data-total="${key.includes('seven_day') ? 7 * 24 * 60 : 5 * 60}">--:--</div>
+                <div class="timer-text extra-timer-${accountId}-${key}" data-resets="${resetsAt || ''}" data-total="${key.includes('seven_day') ? 7 * 24 * 60 : 5 * 60}">--:--</div>
                 <svg class="mini-timer" width="24" height="24" viewBox="0 0 24 24">
                     <circle class="timer-bg" cx="12" cy="12" r="10" />
-                    <circle class="timer-progress ${colorClass}" cx="12" cy="12" r="10"
+                    <circle class="timer-progress extra-timer-circle-${accountId}-${key} ${colorClass}" cx="12" cy="12" r="10"
                         style="stroke-dasharray: 63; stroke-dashoffset: 63" />
                 </svg>
             </div>
         `;
 
-        // Apply warning/danger classes
         const progressEl = row.querySelector('.progress-fill');
         if (utilization >= 90) progressEl.classList.add('danger');
         else if (utilization >= 75) progressEl.classList.add('warning');
 
-        elements.extraRows.appendChild(row);
+        extraRowsContainer.appendChild(row);
         count++;
     }
 
     // Hide toggle if no extra rows
-    elements.expandToggle.style.display = count > 0 ? 'flex' : 'none';
-    if (count === 0 && isExpanded) {
-        isExpanded = false;
-        elements.expandArrow.classList.remove('expanded');
-        elements.expandSection.style.display = 'none';
+    const expandToggle = document.querySelector(`.expand-toggle-${accountId}`);
+    if (expandToggle) {
+        expandToggle.style.display = count > 0 ? 'flex' : 'none';
     }
-
-    return count;
 }
 
-function refreshExtraTimers() {
-    const timerTexts = elements.extraRows.querySelectorAll('.timer-text');
-    const timerCircles = elements.extraRows.querySelectorAll('.timer-progress');
+// Refresh extra timers for a specific account
+function refreshExtraTimersForAccount(accountId) {
+    const extraRowsContainer = document.querySelector(`.extra-rows-${accountId}`);
+    if (!extraRowsContainer) return;
+
+    const timerTexts = extraRowsContainer.querySelectorAll('.timer-text');
+    const timerCircles = extraRowsContainer.querySelectorAll('.timer-progress');
 
     timerTexts.forEach((textEl, i) => {
         const resetsAt = textEl.dataset.resets;
@@ -343,30 +451,48 @@ function refreshExtraTimers() {
     });
 }
 
-function resizeWidget() {
-    const extraCount = elements.extraRows.children.length;
-    if (isExpanded && extraCount > 0) {
-        const expandedHeight = WIDGET_HEIGHT_COLLAPSED + 12 + (extraCount * WIDGET_ROW_HEIGHT);
-        window.electronAPI.resizeWindow(expandedHeight);
-    } else {
-        window.electronAPI.resizeWindow(WIDGET_HEIGHT_COLLAPSED);
-    }
+// Check if there's no usage data
+function hasNoUsage(data) {
+    const sessionUtilization = data.five_hour?.utilization || 0;
+    const sessionResetsAt = data.five_hour?.resets_at;
+    const weeklyUtilization = data.seven_day?.utilization || 0;
+    const weeklyResetsAt = data.seven_day?.resets_at;
+
+    return sessionUtilization === 0 && !sessionResetsAt &&
+        weeklyUtilization === 0 && !weeklyResetsAt;
 }
 
-function updateUI(data) {
-    latestUsageData = data;
+// Extra row label mapping for API fields
+const EXTRA_ROW_CONFIG = {
+    seven_day_sonnet: { label: 'Sonnet (7d)', color: 'weekly' },
+    seven_day_opus: { label: 'Opus (7d)', color: 'opus' },
+    seven_day_cowork: { label: 'Cowork (7d)', color: 'weekly' },
+    seven_day_oauth_apps: { label: 'OAuth Apps (7d)', color: 'weekly' },
+    extra_usage: { label: 'Extra Usage', color: 'extra' },
+};
 
-    if (hasNoUsage(data)) {
-        showNoUsage();
-        return;
+function resizeWidget() {
+    let totalHeight = 0;
+    let hasExpanded = false;
+    
+    for (const account of accounts) {
+        const expandSection = document.querySelector(`.expand-section-${account.id}`);
+        const expandArrow = document.querySelector(`.expand-arrow-${account.id}`);
+        
+        if (expandSection && expandArrow && expandArrow.classList.contains('expanded')) {
+            const extraRows = document.querySelector(`.extra-rows-${account.id}`);
+            const extraCount = extraRows ? extraRows.children.length : 0;
+            totalHeight += ACCOUNT_SECTION_HEIGHT + 12 + (extraCount * WIDGET_ROW_HEIGHT);
+            hasExpanded = true;
+        } else {
+            totalHeight += ACCOUNT_SECTION_HEIGHT;
+        }
     }
-
-    showMainContent();
-    buildExtraRows(data);
-    refreshTimers();
-    if (isExpanded) refreshExtraTimers();
-    resizeWidget();
-    startCountdown();
+    
+    // Add header height (approx 60px for top controls)
+    totalHeight += 60;
+    
+    window.electronAPI.resizeWindow(totalHeight);
 }
 
 // Track if we've already triggered a refresh for expired timers
@@ -375,77 +501,61 @@ let weeklyResetTriggered = false;
 
 function refreshTimers() {
     if (!latestUsageData) return;
+    
+    // Refresh timers for all accounts
+    for (const accountId of Object.keys(latestUsageData)) {
+        const data = latestUsageData[accountId];
+        if (!data) continue;
+        
+        // Session data
+        const sessionUtilization = data.five_hour?.utilization || 0;
+        const sessionResetsAt = data.five_hour?.resets_at;
 
-    // Session data
-    const sessionUtilization = latestUsageData.five_hour?.utilization || 0;
-    const sessionResetsAt = latestUsageData.five_hour?.resets_at;
+        // Check if session timer has expired and we need to refresh
+        if (sessionResetsAt) {
+            const sessionDiff = new Date(sessionResetsAt) - new Date();
+            if (sessionDiff <= 0 && !sessionResetTriggered) {
+                sessionResetTriggered = true;
+                debugLog('Session timer expired for account', accountId, ', triggering refresh...');
+                setTimeout(() => {
+                    fetchUsageData(accountId);
+                }, 3000);
+            } else if (sessionDiff > 0) {
+                sessionResetTriggered = false;
+            }
+        }
 
-    // Check if session timer has expired and we need to refresh
-    if (sessionResetsAt) {
-        const sessionDiff = new Date(sessionResetsAt) - new Date();
-        if (sessionDiff <= 0 && !sessionResetTriggered) {
-            sessionResetTriggered = true;
-            debugLog('Session timer expired, triggering refresh...');
-            // Wait a few seconds for the server to update, then refresh
-            setTimeout(() => {
-                fetchUsageData();
-            }, 3000);
-        } else if (sessionDiff > 0) {
-            sessionResetTriggered = false; // Reset flag when timer is active again
+        // Weekly data
+        const weeklyUtilization = data.seven_day?.utilization || 0;
+        const weeklyResetsAt = data.seven_day?.resets_at;
+
+        // Check if weekly timer has expired and we need to refresh
+        if (weeklyResetsAt) {
+            const weeklyDiff = new Date(weeklyResetsAt) - new Date();
+            if (weeklyDiff <= 0 && !weeklyResetTriggered) {
+                weeklyResetTriggered = true;
+                debugLog('Weekly timer expired for account', accountId, ', triggering refresh...');
+                setTimeout(() => {
+                    fetchUsageData(accountId);
+                }, 3000);
+            } else if (weeklyDiff > 0) {
+                weeklyResetTriggered = false;
+            }
         }
     }
-
-    updateProgressBar(
-        elements.sessionProgress,
-        elements.sessionPercentage,
-        sessionUtilization
-    );
-
-    updateTimer(
-        elements.sessionTimer,
-        elements.sessionTimeText,
-        sessionResetsAt,
-        5 * 60 // 5 hours in minutes
-    );
-
-    // Weekly data
-    const weeklyUtilization = latestUsageData.seven_day?.utilization || 0;
-    const weeklyResetsAt = latestUsageData.seven_day?.resets_at;
-
-    // Check if weekly timer has expired and we need to refresh
-    if (weeklyResetsAt) {
-        const weeklyDiff = new Date(weeklyResetsAt) - new Date();
-        if (weeklyDiff <= 0 && !weeklyResetTriggered) {
-            weeklyResetTriggered = true;
-            debugLog('Weekly timer expired, triggering refresh...');
-            setTimeout(() => {
-                fetchUsageData();
-            }, 3000);
-        } else if (weeklyDiff > 0) {
-            weeklyResetTriggered = false;
-        }
-    }
-
-    updateProgressBar(
-        elements.weeklyProgress,
-        elements.weeklyPercentage,
-        weeklyUtilization,
-        true
-    );
-
-    updateTimer(
-        elements.weeklyTimer,
-        elements.weeklyTimeText,
-        weeklyResetsAt,
-        7 * 24 * 60 // 7 days in minutes
-    );
 }
 
 function startCountdown() {
     if (countdownInterval) clearInterval(countdownInterval);
     countdownInterval = setInterval(() => {
         refreshTimers();
-        if (isExpanded) refreshExtraTimers();
+        // Refresh extra timers for all expanded accounts
+        for (const account of accounts) {
+            const expandToggle = document.querySelector(`.expand-toggle-${account.id}`);
+            if (expandToggle && expandToggle.querySelector('.expand-arrow').classList.contains('expanded')) {
+                refreshExtraTimersForAccount(account.id);
+            }
+        }
     }, 1000);
 }
 
@@ -557,7 +667,7 @@ function showMainContent() {
 function startAutoUpdate() {
     stopAutoUpdate();
     updateInterval = setInterval(() => {
-        fetchUsageData();
+        fetchAllUsageData();
     }, UPDATE_INTERVAL);
 }
 
