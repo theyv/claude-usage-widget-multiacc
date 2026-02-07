@@ -165,14 +165,34 @@ ipcMain.handle('get-credentials', () => {
   return store.get('accounts') || [];
 });
 
-ipcMain.handle('save-credentials', async (event, { sessionKey, organizationId }) => {
-  store.set('sessionKey', sessionKey);
-  if (organizationId) {
-    store.set('organizationId', organizationId);
+ipcMain.handle('save-credentials', async (event, { sessionKey, organizationId, nickname }) => {
+  // Get existing accounts array
+  const accounts = store.get('accounts') || [];
+
+  // Check if account with this sessionKey already exists (prevent duplicates)
+  const existingAccount = accounts.find(acc => acc.sessionKey === sessionKey);
+  if (existingAccount) {
+    debugLog('Account with this sessionKey already exists, skipping save');
+    return { success: false, error: 'Account already exists' };
   }
-  // Also set cookie in Electron session for window-based fetching
+
+  // Create new account object
+  const newAccount = {
+    id: Date.now().toString(),
+    sessionKey: sessionKey,
+    organizationId: organizationId,
+    nickname: nickname || null
+  };
+
+  // Append new account to array
+  accounts.push(newAccount);
+  store.set('accounts', accounts);
+  debugLog('Account saved:', newAccount.id);
+
+  // Set cookie in Electron session for window-based fetching
   await setSessionCookie(sessionKey);
-  return true;
+
+  return { success: true, account: newAccount };
 });
 
 ipcMain.handle('delete-credentials', async () => {
