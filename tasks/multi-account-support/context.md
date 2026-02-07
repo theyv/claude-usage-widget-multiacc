@@ -40,6 +40,7 @@ Branch: dalph/multi-account-support
 - **Multi-Account Architecture** -> App uses accounts array with each account having id, sessionKey, organizationId, and optional nickname. Usage data stored as map keyed by accountId
 - **Dynamic DOM Generation** -> Account sections generated with unique IDs using `account-${account.id}` pattern. Each section has nickname header, usage sections, expand toggle, and expandable details
 - **Per-Account State** -> Each account independently expandable/collapsible. Expand toggle uses `data-account-id` attribute to identify which account to expand
+- **Per-Account State Tracking** -> For independent multi-account operations, use per-account state maps (e.g., `sessionResetTriggered[accountId] = {}`) instead of global flags to prevent cross-account interference
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

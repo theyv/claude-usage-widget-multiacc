@@ -41,6 +41,8 @@ const elements = {
     settingsBtn: document.getElementById('settingsBtn'),
     settingsOverlay: document.getElementById('settingsOverlay'),
     closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+    settingsAccountsList: document.getElementById('settingsAccountsList'),
+    addAccountBtn: document.getElementById('addAccountBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     coffeeBtn: document.getElementById('coffeeBtn')
 };
@@ -109,6 +111,7 @@ function setupEventListeners() {
 
     // Settings calls
     elements.settingsBtn.addEventListener('click', () => {
+        renderSettingsAccounts();
         elements.settingsOverlay.style.display = 'flex';
     });
 
@@ -119,6 +122,11 @@ function setupEventListeners() {
     elements.logoutBtn.addEventListener('click', async () => {
         await window.electronAPI.deleteCredentials();
         accounts = [];
+        elements.settingsOverlay.style.display = 'none';
+        showLoginRequired();
+    });
+
+    elements.addAccountBtn.addEventListener('click', () => {
         elements.settingsOverlay.style.display = 'none';
         showLoginRequired();
     });
@@ -675,6 +683,69 @@ function stopAutoUpdate() {
     if (updateInterval) {
         clearInterval(updateInterval);
         updateInterval = null;
+    }
+}
+
+// Render accounts in settings overlay
+function renderSettingsAccounts() {
+    elements.settingsAccountsList.innerHTML = '';
+    
+    if (accounts.length === 0) {
+        elements.settingsAccountsList.innerHTML = '<p class="no-accounts-text">No accounts connected</p>';
+        elements.addAccountBtn.style.display = 'block';
+        return;
+    }
+    
+    accounts.forEach(account => {
+        const accountItem = document.createElement('div');
+        accountItem.className = 'account-item';
+        accountItem.innerHTML = `
+            <div class="account-info">
+                <span class="account-nickname">${account.nickname || 'Account'}</span>
+            </div>
+            <button class="remove-account-btn" data-account-id="${account.id}" title="Remove account">
+                Remove
+            </button>
+        `;
+        elements.settingsAccountsList.appendChild(accountItem);
+        
+        // Add event listener for remove button
+        const removeBtn = accountItem.querySelector('.remove-account-btn');
+        removeBtn.addEventListener('click', async () => {
+            const accountId = removeBtn.dataset.accountId;
+            await handleRemoveAccount(accountId);
+        });
+    });
+    
+    // Show "Add Another Account" button if fewer than 2 accounts
+    elements.addAccountBtn.style.display = accounts.length < 2 ? 'block' : 'none';
+}
+
+// Handle account removal
+async function handleRemoveAccount(accountId) {
+    const result = await window.electronAPI.removeAccount(accountId);
+    
+    if (result.success) {
+        // Remove account from local state
+        accounts = accounts.filter(acc => acc.id !== accountId);
+        
+        // Remove from usage data map
+        delete latestUsageData[accountId];
+        
+        // Re-render settings accounts list
+        renderSettingsAccounts();
+        
+        // If no accounts left, show login
+        if (accounts.length === 0) {
+            elements.settingsOverlay.style.display = 'none';
+            showLoginRequired();
+        } else {
+            // Re-render main content accounts
+            renderAccounts();
+            resizeWidget();
+        }
+    } else {
+        console.error('Failed to remove account:', result.error);
     }
 }
 

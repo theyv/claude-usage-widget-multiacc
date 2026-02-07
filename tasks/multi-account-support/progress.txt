@@ -164,6 +164,47 @@ Started: 2026-02-07 18:22
 
 ---
 
+## [2026-02-07T19:06:40.000Z] - US-008 ✅ SUCCESS
+**Title:** Implement independent auto-update
+
+### Changes
+- Changed global `sessionResetTriggered` and `weeklyResetTriggered` flags to per-account maps (`sessionResetTriggered = {}` and `weeklyResetTriggered = {}`)
+- Updated [`refreshTimers()`](src/renderer/app.js) function to use per-account flag tracking (`sessionResetTriggered[accountId]` and `weeklyResetTriggered[accountId]`)
+- This ensures each account has its own independent update cycle when timers expire
+
+### Files
+- src/renderer/app.js (modified)
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_independent_auto_update.js
+
+### Learnings
+- [Per-Account State Tracking] -> For independent multi-account operations, use per-account state maps (e.g., `sessionResetTriggered[accountId] = {}`) instead of global flags to prevent cross-account interference
+
+---
+
+## [2026-02-07T19:11:57.000Z] - US-009 ✅ SUCCESS
+**Title:** Dynamic widget resizing
+
+### Changes
+- No code changes required - implementation was already complete in src/renderer/app.js (lines 474-496)
+- The resizeWidget() function already correctly calculates height based on:
+  - Number of accounts (each adds ACCOUNT_SECTION_HEIGHT = 140px)
+  - Expanded sections (adds 12px + extra rows × WIDGET_ROW_HEIGHT)
+  - Header height (60px)
+  - Calls window.electronAPI.resizeWindow(totalHeight) to resize window
+
+### Files
+- No files modified (implementation already complete)
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_resize_widget.js
+
+### Learnings
+- None discovered - existing implementation already handles dynamic resizing correctly
+
+---
+
 ## [2026-02-07T18:43:26.000Z] - US-005 ✅ SUCCESS
 **Title:** Add Nickname field to Login UI
 

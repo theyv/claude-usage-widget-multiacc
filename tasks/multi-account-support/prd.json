@@ -117,7 +117,7 @@
         "Verify in browser"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },
@@ -131,7 +131,7 @@
         "Verify in browser"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },

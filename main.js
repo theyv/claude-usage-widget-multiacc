@@ -212,6 +212,33 @@ ipcMain.handle('delete-credentials', async () => {
   return true;
 });
 
+// Remove a specific account by ID
+ipcMain.handle('remove-account', async (event, accountId) => {
+  const accounts = store.get('accounts') || [];
+  
+  // Find the account to get its sessionKey for cookie cleanup
+  const accountToRemove = accounts.find(acc => acc.id === accountId);
+  
+  if (accountToRemove) {
+    // Remove the account from the array
+    const updatedAccounts = accounts.filter(acc => acc.id !== accountId);
+    store.set('accounts', updatedAccounts);
+    
+    // Clear the sessionKey cookie for this account
+    try {
+      await session.defaultSession.cookies.remove('https://claude.ai', 'sessionKey');
+      debugLog('Cleared sessionKey cookie for removed account:', accountId);
+    } catch (e) {
+      // Ignore if cookie doesn't exist
+    }
+    
+    debugLog('Account removed:', accountId);
+    return { success: true };
+  }
+  
+  return { success: false, error: 'Account not found' };
+});
+
 // Validate a sessionKey by fetching org ID via hidden BrowserWindow
 ipcMain.handle('validate-session-key', async (event, sessionKey) => {
   debugLog('Validating session key:', sessionKey.substring(0, 20) + '...');
