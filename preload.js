@@ -28,6 +28,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // API
-  fetchUsageData: () => ipcRenderer.invoke('fetch-usage-data'),
+  fetchUsageData: (accountId) => ipcRenderer.invoke('fetch-usage-data', accountId),
   openExternal: (url) => ipcRenderer.send('open-external', url)
 });

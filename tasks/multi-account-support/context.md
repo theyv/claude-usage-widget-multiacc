@@ -45,6 +45,9 @@ Branch: dalph/multi-account-support
 - **Dynamic UI Refresh Pattern** -> Settings overlay uses renderSettingsAccounts() to refresh account list dynamically when opened
 - **Conditional Button Visibility** -> Button visibility controlled by CSS display property based on account count (< 2)
 - **Event Delegation Pattern** -> Remove buttons use event delegation with data-account-id attribute to identify which account to remove
+- **Expired Account Tracking Pattern** -> Using state maps (e.g., expiredAccounts) to track account-specific states independently instead of global flags
+- **Account-Specific Error Handling** -> Mark accounts as expired instead of removing them, allowing other accounts to continue functioning
+- **Reconnection Flow Pattern** -> When reconnecting, update existing account credentials via update-credentials IPC handler instead of creating new account
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

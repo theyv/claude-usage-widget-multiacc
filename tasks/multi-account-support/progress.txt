@@ -258,3 +258,33 @@ Started: 2026-02-07 18:22
 - [Credentials Object Pattern] -> When adding optional fields to credentials, use null fallback (e.g., `nickname: nickname || null`) to maintain consistency with existing patterns
 
 ---
+
+## [2026-02-07T19:30:46.000Z] - US-011 ✅ SUCCESS
+**Title:** Account-specific session expiration
+
+### Changes
+- Added expiredAccounts state map to track which accounts have expired sessions
+- Modified fetchUsageData to mark accounts as expired instead of removing them when API fails
+- Modified renderAccounts to show expired state with badge and reconnect button
+- Added updateAccountExpiredUI function to update UI for expired accounts
+- Added handleReconnect function to handle reconnection flow when user clicks reconnect
+- Modified handleConnect to support both new account creation and reconnection of existing accounts
+- Added update-credentials IPC handler in main.js to update existing account credentials
+- Added updateCredentials API in preload.js to expose new IPC handler
+- Added CSS styles for expired account state
+
+### Files
+- src/renderer/app.js
+- main.js
+- preload.js
+- src/renderer/styles.css
+
+### Test Tools Created
+- tasks/multi-account-support/test_tools/verify_account_specific_expiration.js
+
+### Learnings
+- Per-Account State Tracking Pattern -> Using state maps (e.g., expiredAccounts) to track account-specific states independently instead of global flags
+- Account-Specific Error Handling Pattern -> Mark accounts as expired instead of removing them, allowing other accounts to continue functioning
+- Reconnection Flow Pattern -> When reconnecting, update existing account credentials via update-credentials IPC handler instead of creating new account
+
+---
