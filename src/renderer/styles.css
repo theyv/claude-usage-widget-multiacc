@@ -606,31 +606,31 @@ body {
 }
 
 .settings-content {
-    padding: 0 24px;
+    padding: 0 16px;
     width: 100%;
     text-align: center;
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     max-width: 400px;
 }
 
 .icon-close-settings-btn {
     position: fixed;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     background: rgba(255, 255, 255, 0.05);
     border: none;
     color: #a0a0a0;
-    font-size: 24px;
+    font-size: 18px;
     line-height: 1;
     cursor: pointer;
     padding: 4px;
     border-radius: 6px;
     transition: all 0.2s;
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -711,17 +711,17 @@ body {
 
 .settings-section-title {
     color: #e0e0e0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     text-align: left;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .accounts-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 6px;
+    margin-bottom: 12px;
 }
 
 .account-item {
@@ -729,29 +729,29 @@ body {
     justify-content: space-between;
     align-items: center;
     background: rgba(255, 255, 255, 0.05);
-    padding: 10px 12px;
+    padding: 6px 10px;
     border-radius: 6px;
 }
 
 .account-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex: 1;
 }
 
 .account-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .edit-account-btn {
     background: rgba(139, 92, 246, 0.1);
     color: #a78bfa;
     border: 1px solid rgba(139, 92, 246, 0.3);
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: 9px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -767,9 +767,9 @@ body {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: #e0e0e0;
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 10px;
     width: 100%;
     max-width: 200px;
     transition: border-color 0.2s;
@@ -784,9 +784,9 @@ body {
     background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -802,9 +802,9 @@ body {
     background: rgba(255, 255, 255, 0.05);
     color: #a0a0a0;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: 9px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -820,9 +820,9 @@ body {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: 9px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -835,23 +835,23 @@ body {
 
 .no-accounts-text {
     color: #707070;
-    font-size: 11px;
+    font-size: 10px;
     text-align: center;
-    padding: 12px;
+    padding: 8px;
 }
 
 .add-account-btn {
     background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
     color: white;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
     width: 100%;
-    margin-top: 8px;
+    margin-top: 6px;
 }
 
 .add-account-btn:hover {
@@ -862,7 +862,7 @@ body {
 .settings-actions {
     display: flex;
     justify-content: center;
-    gap: 12px;
+    gap: 8px;
     padding-top: 4px;
 }
 
@@ -870,10 +870,10 @@ body {
     background: transparent;
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.5);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     transition: all 0.2s;
     width: 100%;
@@ -888,10 +888,10 @@ body {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     transition: all 0.2s;
 }

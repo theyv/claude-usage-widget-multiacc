@@ -108,8 +108,45 @@ Started: 2026-02-08T09:31:42.854Z
 ### Learnings
 - CSS verification via file reading with regex is reliable for style changes
 - PowerShell findstr command is reliable for verifying SVG dimension changes in JavaScript files
----
 
+## 2026-02-08T10:28:11Z - US-007 ✅ SUCCESS
+**Title:** Nickname Editing Interface in Settings
+
+### Changes
+- Added `updateNickname` API to preload.js (exposed `window.electronAPI.updateNickname`)
+- Modified `renderSettingsAccounts()` function in app.js to add Edit button, input field, and Save/Cancel buttons
+- Added `handleEditNickname()` and `handleSaveNickname()` functions for edit functionality
+- Added CSS styles for edit mode UI elements (`.edit-account-btn`, `.edit-nickname-input`, `.save-nickname-btn`, `.cancel-nickname-btn`, `.account-actions`)
+
+### Files
+- preload.js (modified)
+- src/renderer/app.js (modified)
+- src/renderer/styles.css (modified)
+
+### Test Tools Created
+- tasks/widget-optimization/test_tools/verify_nickname_editing_puppeteer.js
+
+### Learnings
+- IPC Handler Pattern -> The `update-nickname` handler in main.js follows the same pattern as `update-credentials` and `remove-account`: find account by ID, update field, save to store, return response. This pattern is consistent for all account-related IPC operations.
+- UI State Management Pattern -> When editing account nicknames, UI state is managed by toggling between display mode (nickname text) and edit mode (input field with Save/Cancel buttons). The `renderSettingsAccounts()` function is called to re-render the entire list after any state change.
+- Puppeteer Testing Limitation -> Automated Puppeteer tests cannot access `electronAPI` when using `file://` protocol. The test correctly detects this and skips with appropriate message. Full browser testing requires running the actual Electron app.
+
+## 2026-02-08T10:35:12Z - US-008 ✅ SUCCESS
+**Title:** Immediate UI Refresh on Nickname Change
+
+### Changes
+- No code changes required - implementation was already present in src/renderer/app.js
+- The handleSaveNickname() function already calls renderAccounts() after successful nickname update, which immediately refreshes main widget UI
+
+### Files
+- tasks/widget-optimization/test_tools/verify_immediate_nickname_refresh.js (created)
+
+### Test Tools Created
+- tasks/widget-optimization/test_tools/verify_immediate_nickname_refresh.js
+
+### Learnings
+- None discovered
+---
 ## Implementation Log
 - [2026-02-08] PRD created and task initialized.
 

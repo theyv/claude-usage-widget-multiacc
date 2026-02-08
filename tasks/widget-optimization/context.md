@@ -32,7 +32,9 @@ Branch: dalph/widget-optimization
 - **Electron alwaysOnTop levels**: Use `'screen-saver'` level for desktop widgets that need to stay visible even when Win+D (Show Desktop) is pressed
 - **Windows-specific testing**: Features involving Windows keyboard shortcuts (like Win+D) require manual testing as they cannot be automated
 - **IPC Handler Pattern**: For account updates, use pattern: find account by ID, update field, save to store, return response. Consistent with update-credentials and remove-account handlers.
+- **UI State Management Pattern**: When editing account nicknames, UI state is managed by toggling between display mode (nickname text) and edit mode (input field with Save/Cancel buttons). The `renderSettingsAccounts()` function is called to re-render the entire list after any state change.
 - **CSS Testing Pattern**: CSS verification can be done via file reading with regex matching for faster testing without browser startup. Path.join(__dirname, '../../../') pattern for test tools in tasks/[task]/test_tools/ to reach project root.
+- **Puppeteer Testing Limitation**: Automated Puppeteer tests cannot access `electronAPI` when using `file://` protocol. Full browser testing requires running the actual Electron app.
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`
