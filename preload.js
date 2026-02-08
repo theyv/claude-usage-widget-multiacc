@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCredentials: () => ipcRenderer.invoke('get-credentials'),
   saveCredentials: (credentials) => ipcRenderer.invoke('save-credentials', credentials),
   updateCredentials: (credentials) => ipcRenderer.invoke('update-credentials', credentials),
+  updateNickname: (accountId, nickname) => ipcRenderer.invoke('update-nickname', { accountId, nickname }),
   deleteCredentials: () => ipcRenderer.invoke('delete-credentials'),
   removeAccount: (accountId) => ipcRenderer.invoke('remove-account', accountId),
   validateSessionKey: (sessionKey) => ipcRenderer.invoke('validate-session-key', sessionKey),

@@ -832,15 +832,27 @@ function renderSettingsAccounts() {
     accounts.forEach(account => {
         const accountItem = document.createElement('div');
         accountItem.className = 'account-item';
+        accountItem.id = `settings-account-${account.id}`;
         accountItem.innerHTML = `
             <div class="account-info">
                 <span class="account-nickname">${account.nickname || 'Account'}</span>
             </div>
-            <button class="remove-account-btn" data-account-id="${account.id}" title="Remove account">
-                Remove
-            </button>
+            <div class="account-actions">
+                <button class="edit-account-btn" data-account-id="${account.id}" title="Edit nickname">
+                    Edit
+                </button>
+                <button class="remove-account-btn" data-account-id="${account.id}" title="Remove account">
+                    Remove
+                </button>
+            </div>
         `;
         elements.settingsAccountsList.appendChild(accountItem);
+        
+        // Add event listener for edit button
+        const editBtn = accountItem.querySelector('.edit-account-btn');
+        editBtn.addEventListener('click', () => {
+            handleEditNickname(account.id, account.nickname || 'Account');
+        });
         
         // Add event listener for remove button
         const removeBtn = accountItem.querySelector('.remove-account-btn');
@@ -852,6 +864,80 @@ function renderSettingsAccounts() {
     
     // Show "Add Another Account" button if fewer than 2 accounts
     elements.addAccountBtn.style.display = accounts.length < 2 ? 'block' : 'none';
+}
+
+// Handle nickname editing
+async function handleEditNickname(accountId, currentNickname) {
+    const accountItem = document.getElementById(`settings-account-${accountId}`);
+    if (!accountItem) return;
+    
+    const accountInfo = accountItem.querySelector('.account-info');
+    const accountActions = accountItem.querySelector('.account-actions');
+    
+    // Replace nickname with input field
+    accountInfo.innerHTML = `
+        <input type="text" class="edit-nickname-input" value="${currentNickname}" placeholder="Nickname" spellcheck="false" autocomplete="off">
+    `;
+    
+    // Replace action buttons with Save/Cancel
+    accountActions.innerHTML = `
+        <button class="save-nickname-btn" data-account-id="${accountId}" title="Save nickname">
+            Save
+        </button>
+        <button class="cancel-nickname-btn" data-account-id="${accountId}" title="Cancel">
+            Cancel
+        </button>
+    `;
+    
+    // Focus input
+    const input = accountInfo.querySelector('.edit-nickname-input');
+    input.focus();
+    input.select();
+    
+    // Add event listeners
+    const saveBtn = accountActions.querySelector('.save-nickname-btn');
+    const cancelBtn = accountActions.querySelector('.cancel-nickname-btn');
+    
+    saveBtn.addEventListener('click', async () => {
+        const newNickname = input.value.trim();
+        await handleSaveNickname(accountId, newNickname);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        renderSettingsAccounts();
+    });
+    
+    // Handle Enter key
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const newNickname = input.value.trim();
+            handleSaveNickname(accountId, newNickname);
+        } else if (e.key === 'Escape') {
+            renderSettingsAccounts();
+        }
+    });
+}
+
+// Handle saving nickname
+async function handleSaveNickname(accountId, nickname) {
+    const result = await window.electronAPI.updateNickname(accountId, nickname);
+    
+    if (result.success) {
+        // Update local accounts array
+        const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+        if (accountIndex !== -1) {
+            accounts[accountIndex].nickname = result.account.nickname;
+        }
+        
+        // Re-render settings accounts list
+        renderSettingsAccounts();
+        
+        // Re-render main widget accounts
+        renderAccounts();
+    } else {
+        console.error('Failed to update nickname:', result.error);
+        alert('Failed to update nickname: ' + (result.error || 'Unknown error'));
+    }
 }
 
 // Handle account removal

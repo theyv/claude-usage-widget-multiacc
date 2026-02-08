@@ -27,7 +27,8 @@
     "electron-builder": "^24.9.1"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "puppeteer": "^24.37.2"
   },
   "build": {
     "appId": "com.claudeusage.widget",
