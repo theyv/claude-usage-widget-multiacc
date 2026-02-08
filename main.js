@@ -75,7 +75,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow(windowOptions);
   mainWindow.loadFile('src/renderer/index.html');
 
-  mainWindow.setAlwaysOnTop(true, 'floating');
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
   mainWindow.setVisibleOnAllWorkspaces(true);
 
   mainWindow.on('move', () => {
