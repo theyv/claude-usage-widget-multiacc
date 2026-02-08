@@ -14,3 +14,22 @@ Started: 2026-02-08T09:31:42.854Z
 
 ## Implementation Log
 - [2026-02-08] PRD created and task initialized.
+
+## 2026-02-08T09:40:46Z - US-001 ✅ SUCCESS
+**Title:** Window 'Sticky to Desktop' Behavior
+
+### Changes
+- Changed `mainWindow.setAlwaysOnTop(true, 'floating')` to `mainWindow.setAlwaysOnTop(true, 'screen-saver')` in [`main.js`](main.js:78)
+- The `'screen-saver'` level is specifically designed for desktop widgets and screen savers that need to stay visible even when Win+D is pressed
+
+### Files
+- Modified: [`main.js`](main.js:78)
+
+### Test Tools Created
+- [`tasks/widget-optimization/test_tools/verify_sticky_desktop.md`](tasks/widget-optimization/test_tools/verify_sticky_desktop.md) - Comprehensive verification guide with manual testing steps for Win+D behavior
+
+### Learnings
+- **Electron alwaysOnTop levels**: The `'screen-saver'` level is specifically designed for desktop widgets that need to stay visible even when Win+D (Show Desktop) is pressed. This is higher than `'floating'` and should prevent the window from being hidden by the Show Desktop command on Windows.
+- **Win+D behavior limitation**: The effectiveness of `'screen-saver'` may vary depending on Windows version and security settings. Some Windows configurations may override this behavior.
+- **Manual testing requirement**: Features that involve Windows-specific keyboard shortcuts (like Win+D) require manual testing since they cannot be automated through standard testing tools.
+---

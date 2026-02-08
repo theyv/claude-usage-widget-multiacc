@@ -29,6 +29,8 @@ Branch: dalph/widget-optimization
 - Window resizing via `ipcMain.on('resize-window')`
 - Store encryption key: `claude-widget-secure-key-2024`
 - Widget dimensions: 480x140 (collapsed)
+- **Electron alwaysOnTop levels**: Use `'screen-saver'` level for desktop widgets that need to stay visible even when Win+D (Show Desktop) is pressed
+- **Windows-specific testing**: Features involving Windows keyboard shortcuts (like Win+D) require manual testing as they cannot be automated
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

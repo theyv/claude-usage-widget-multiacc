@@ -222,6 +222,31 @@ ipcMain.handle('update-credentials', async (event, { id, sessionKey, organizatio
   return { success: true, account: updatedAccount };
 });
 
+// Update nickname for an existing account
+ipcMain.handle('update-nickname', async (event, { accountId, nickname }) => {
+  const accounts = store.get('accounts') || [];
+  
+  // Find account to update
+  const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+  
+  if (accountIndex === -1) {
+    return { success: false, error: 'Account not found' };
+  }
+  
+  // Update account nickname
+  const updatedAccount = {
+    ...accounts[accountIndex],
+    nickname: nickname || null
+  };
+  
+  // Update accounts array
+  accounts[accountIndex] = updatedAccount;
+  store.set('accounts', accounts);
+  
+  debugLog('Nickname updated for account:', accountId, '->', nickname);
+  return { success: true, account: updatedAccount };
+});
+
 ipcMain.handle('delete-credentials', async () => {
   store.delete('sessionKey');
   store.delete('organizationId');
