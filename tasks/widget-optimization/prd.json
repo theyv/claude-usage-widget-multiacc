@@ -30,7 +30,7 @@
         "Typecheck/lint passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },
@@ -45,7 +45,7 @@
         "Verify in browser using Puppeteer selectors"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     },

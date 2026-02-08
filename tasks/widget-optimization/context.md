@@ -31,6 +31,7 @@ Branch: dalph/widget-optimization
 - Widget dimensions: 480x140 (collapsed)
 - **Electron alwaysOnTop levels**: Use `'screen-saver'` level for desktop widgets that need to stay visible even when Win+D (Show Desktop) is pressed
 - **Windows-specific testing**: Features involving Windows keyboard shortcuts (like Win+D) require manual testing as they cannot be automated
+- **IPC Handler Pattern**: For account updates, use pattern: find account by ID, update field, save to store, return response. Consistent with update-credentials and remove-account handlers.
 
 ## Notes
 - Store encryption key: `claude-widget-secure-key-2024`

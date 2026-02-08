@@ -10,6 +10,41 @@ Started: 2026-02-08T09:31:42.854Z
 - Renderer uses `src/renderer/styles.css` for layout and `src/renderer/app.js` for logic.
 - Account data is stored in `electron-store` under the `accounts` key.
 
+## 2026-02-08T09:44:00Z - US-002 ✅ SUCCESS
+**Title:** Update Nickname IPC Handler
+
+### Changes
+- Implemented dedicated `ipcMain.handle('update-nickname', ...)` handler in main.js
+- Handler accepts accountId and nickname parameters
+- Updates account nickname in accounts array
+- Persists changes to electron-store
+- Returns success/error response with updated account
+- Handles edge cases: non-existent accounts, null nicknames
+
+### Files
+- main.js (modified - added update-nickname handler)
+
+### Test Tools Created
+- tasks/widget-optimization/test_tools/verify_update_nickname.js
+
+### Learnings
+- **IPC Handler Pattern** -> New nickname update handler follows existing pattern: find account by ID, update field, save to store, return response. This pattern is consistent with update-credentials and remove-account handlers.
+## 2026-02-08T09:49:37Z - US-003 ✅ SUCCESS
+**Title:** Base UI 'Slim' Global Styles
+
+### Changes
+- Reduced .widget-container border width from 1px to 0px (removed border)
+- Decreased base font sizes across the app (.title: 14px→12px, .usage-label: 11px→10px, .usage-percentage: 13px→11px, .timer-text: 13px→11px, .account-header: 14px→12px)
+- Tightened title bar spacing (padding reduced from 8px12px to 4px8px, height reduced from 36px to 28px, gap reduced from 8px to 6px)
+
+### Files
+- src/renderer/styles.css
+
+### Test Tools Created
+- tasks/widget-optimization/test_tools/verify_slim_styles.js
+
+### Learnings
+- None discovered
 ---
 
 ## Implementation Log
