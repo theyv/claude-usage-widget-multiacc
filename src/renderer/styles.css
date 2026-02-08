@@ -555,9 +555,9 @@ body {
     align-items: center;
     justify-content: space-between;
     /* Text on left, chart on right */
-    gap: 6px;
+    gap: 4px;
     /* space between text and pie chart */
-    padding-left: 4px;
+    padding-left: 2px;
     /* Alignment adjustment */
 }
 
@@ -584,7 +584,7 @@ body {
 
 .timer-text {
     color: #e0e0e0;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     font-family: inherit;

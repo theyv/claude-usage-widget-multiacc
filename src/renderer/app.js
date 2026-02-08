@@ -341,7 +341,7 @@ function renderAccounts() {
                 <span class="usage-percentage session-percentage-${account.id}">0%</span>
                 <div class="timer-container">
                     <div class="timer-text session-time-text-${account.id}">--:--</div>
-                    <svg class="mini-timer" width="20" height="20" viewBox="0 0 24 24">
+                    <svg class="mini-timer" width="16" height="16" viewBox="0 0 24 24">
                         <circle class="timer-bg" cx="12" cy="12" r="10" />
                         <circle class="timer-progress session-timer-${account.id}" cx="12" cy="12" r="10"
                             style="stroke-dasharray: 63; stroke-dashoffset: 63" />
@@ -358,7 +358,7 @@ function renderAccounts() {
                 <span class="usage-percentage weekly-percentage-${account.id}">0%</span>
                 <div class="timer-container">
                     <div class="timer-text weekly-time-text-${account.id}">--:--</div>
-                    <svg class="mini-timer" width="20" height="20" viewBox="0 0 24 24">
+                    <svg class="mini-timer" width="16" height="16" viewBox="0 0 24 24">
                         <circle class="timer-bg" cx="12" cy="12" r="10" />
                         <circle class="timer-progress weekly weekly-timer-${account.id}" cx="12" cy="12" r="10"
                             style="stroke-dasharray: 63; stroke-dashoffset: 63" />
@@ -551,7 +551,7 @@ function buildExtraRowsForAccount(accountId, data) {
             <span class="usage-percentage">${Math.round(utilization)}%</span>
             <div class="timer-container">
                 <div class="timer-text extra-timer-${accountId}-${key}" data-resets="${resetsAt || ''}" data-total="${key.includes('seven_day') ? 7 * 24 * 60 : 5 * 60}">--:--</div>
-                <svg class="mini-timer" width="20" height="20" viewBox="0 0 24 24">
+                <svg class="mini-timer" width="16" height="16" viewBox="0 0 24 24">
                     <circle class="timer-bg" cx="12" cy="12" r="10" />
                     <circle class="timer-progress extra-timer-circle-${accountId}-${key} ${colorClass}" cx="12" cy="12" r="10"
                         style="stroke-dasharray: 63; stroke-dashoffset: 63" />
