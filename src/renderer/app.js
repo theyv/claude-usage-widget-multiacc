@@ -5,6 +5,7 @@ let countdownInterval = null;
 let latestUsageData = {}; // Map of accountId -> usage data
 let isExpanded = false;
 let expiredAccounts = {}; // Map of accountId -> boolean (true if expired)
+const inFlightFetches = new Set(); // accountIds currently being fetched — prevents overlapping calls
 const UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const WIDGET_HEIGHT_COLLAPSED = 110;
 const WIDGET_ROW_HEIGHT = 24;
@@ -278,6 +279,12 @@ async function handleAutoDetect() {
 async function fetchUsageData(accountId) {
     debugLog('fetchUsageData called for account:', accountId);
 
+    if (inFlightFetches.has(accountId)) {
+        debugLog('Fetch already in flight for account', accountId, '— skipping');
+        return;
+    }
+
+    inFlightFetches.add(accountId);
     try {
         debugLog('Calling electronAPI.fetchUsageData...');
         const data = await window.electronAPI.fetchUsageData(accountId);
@@ -298,6 +305,8 @@ async function fetchUsageData(accountId) {
         } else {
             debugLog('Failed to fetch usage data for account', accountId);
         }
+    } finally {
+        inFlightFetches.delete(accountId);
     }
 }
 
@@ -687,7 +696,7 @@ function startCountdown() {
                 refreshExtraTimersForAccount(account.id);
             }
         }
-    }, 1000);
+    }, 30000);
 }
 
 // Update progress bar
@@ -852,8 +861,8 @@ function renderSettingsAccounts() {
         });
     });
     
-    // Show "Add Another Account" button if fewer than 2 accounts
-    elements.addAccountBtn.style.display = accounts.length < 2 ? 'block' : 'none';
+    // "Add Another Account" button is always available — no cap on account count
+    elements.addAccountBtn.style.display = 'block';
 }
 
 // Handle nickname editing
