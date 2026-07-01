@@ -20,7 +20,7 @@ let mainWindow = null;
 let tray = null;
 
 const WIDGET_WIDTH = 480;
-const WIDGET_HEIGHT = 140;
+const WIDGET_HEIGHT = 110;
 
 
 

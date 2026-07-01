@@ -38,7 +38,8 @@
         "nsis",
         "portable"
       ],
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "signingHashAlgorithms": []
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"

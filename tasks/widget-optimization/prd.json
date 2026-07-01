@@ -133,7 +133,7 @@
         "Verify in browser using Puppeteer selectors"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "blocked": false,
       "notes": ""
     }

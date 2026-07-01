@@ -6,9 +6,9 @@ let latestUsageData = {}; // Map of accountId -> usage data
 let isExpanded = false;
 let expiredAccounts = {}; // Map of accountId -> boolean (true if expired)
 const UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const WIDGET_HEIGHT_COLLAPSED = 140;
-const WIDGET_ROW_HEIGHT = 30;
-const ACCOUNT_SECTION_HEIGHT = 140; // Height per account section
+const WIDGET_HEIGHT_COLLAPSED = 110;
+const WIDGET_ROW_HEIGHT = 24;
+const ACCOUNT_SECTION_HEIGHT = 90; // Height per account section
 
 // Debug logging — only shows in DevTools (development mode).
 // Regular users won't see verbose logs in production.
@@ -613,27 +613,17 @@ const EXTRA_ROW_CONFIG = {
 };
 
 function resizeWidget() {
-    let totalHeight = 0;
-    let hasExpanded = false;
-    
-    for (const account of accounts) {
-        const expandSection = document.querySelector(`.expand-section-${account.id}`);
-        const expandArrow = document.querySelector(`.expand-arrow-${account.id}`);
-        
-        if (expandSection && expandArrow && expandArrow.classList.contains('expanded')) {
-            const extraRows = document.querySelector(`.extra-rows-${account.id}`);
-            const extraCount = extraRows ? extraRows.children.length : 0;
-            totalHeight += ACCOUNT_SECTION_HEIGHT + 12 + (extraCount * WIDGET_ROW_HEIGHT);
-            hasExpanded = true;
-        } else {
-            totalHeight += ACCOUNT_SECTION_HEIGHT;
+    // Wait for DOM to update
+    setTimeout(() => {
+        const container = document.querySelector('.widget-container');
+        if (container) {
+            // We want the height of the container to determine window size
+            // Adding a small buffer for safety
+            const height = Math.ceil(container.scrollHeight);
+            debugLog('Auto-resizing window to:', height);
+            window.electronAPI.resizeWindow(height);
         }
-    }
-    
-    // Add header height (approx 60px for top controls)
-    totalHeight += 60;
-    
-    window.electronAPI.resizeWindow(totalHeight);
+    }, 50);
 }
 
 // Track if we've already triggered a refresh for expired timers (per-account)
