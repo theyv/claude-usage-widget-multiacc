@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, session, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, session, shell, screen, Notification } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const { fetchViaWindow } = require('./src/fetch-via-window');
@@ -72,14 +72,15 @@ function createMainWindow() {
     debugLog('[Window] Saved position', savedPosition, 'is off-screen on current display setup; centering instead');
     savedPosition = null;
   }
+  const settings = getStoredSettings();
   const windowOptions = {
     width: WIDGET_WIDTH,
     height: WIDGET_HEIGHT,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: settings.alwaysOnTop,
     resizable: false,
-    skipTaskbar: false,
+    skipTaskbar: process.platform !== 'darwin' && settings.minimizeToTray,
     icon: path.join(__dirname, 'assets/icon.ico'),
     webPreferences: {
       nodeIntegration: false,
@@ -96,7 +97,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow(windowOptions);
   mainWindow.loadFile('src/renderer/index.html');
 
-  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  applyWindowSettings(settings);
   mainWindow.setVisibleOnAllWorkspaces(true);
 
   let positionSaveTimer = null;
@@ -434,6 +435,75 @@ ipcMain.handle('detect-session-key', async () => {
   });
 });
 
+// ── Settings ────────────────────────────────────────────────────────────
+// Default values used when a setting has never been saved.
+const DEFAULT_SETTINGS = {
+  autoStart: false,
+  minimizeToTray: false,   // "Hide from taskbar"
+  alwaysOnTop: true,
+  theme: 'dark',           // 'dark' | 'light' | 'system'
+  warnThreshold: 75,
+  dangerThreshold: 90,
+  timeFormat: '12h',       // '12h' | '24h'
+  weeklyDateFormat: 'date',// 'date' | 'date-day' | 'date-day-time'
+  refreshInterval: '300',  // seconds, as string
+  usageAlerts: true,
+  compactMode: false
+};
+
+function getStoredSettings() {
+  const result = {};
+  for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {
+    result[key] = store.get(`settings.${key}`, def);
+  }
+  return result;
+}
+
+// Apply window-affecting settings (always-on-top, hide-from-taskbar) to the
+// main window. Called on startup and whenever settings are saved.
+function applyWindowSettings(settings) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setAlwaysOnTop(!!settings.alwaysOnTop, 'screen-saver');
+  if (process.platform === 'darwin') {
+    if (settings.minimizeToTray) { app.dock?.hide(); } else { app.dock?.show(); }
+  } else {
+    mainWindow.setSkipTaskbar(!!settings.minimizeToTray);
+  }
+}
+
+ipcMain.handle('get-settings', () => getStoredSettings());
+
+ipcMain.handle('save-settings', (event, settings) => {
+  // autoStart is unreliable on Linux and portable Windows builds — force off there.
+  const isPortable = process.platform === 'win32' && !!process.env.PORTABLE_EXECUTABLE_FILE;
+  const supportsLoginItems = process.platform !== 'linux' && !isPortable;
+  const merged = { ...DEFAULT_SETTINGS, ...settings };
+  merged.autoStart = supportsLoginItems ? !!settings.autoStart : false;
+
+  for (const key of Object.keys(DEFAULT_SETTINGS)) {
+    store.set(`settings.${key}`, merged[key]);
+  }
+
+  if (supportsLoginItems) {
+    app.setLoginItemSettings({
+      openAtLogin: merged.autoStart,
+      ...(process.platform !== 'darwin' && { path: app.getPath('exe') })
+    });
+  }
+
+  applyWindowSettings(merged);
+  return { success: true, settings: merged };
+});
+
+ipcMain.handle('get-app-version', () => app.getVersion());
+
+// Show a native OS desktop notification (Windows toast, macOS NC, Linux libnotify)
+ipcMain.on('show-notification', (event, { title, body }) => {
+  if (Notification.isSupported()) {
+    new Notification({ title, body, silent: false }).show();
+  }
+});
+
 ipcMain.handle('fetch-usage-data', async (event, accountId) => {
   // Get accounts array from storage
   const accounts = store.get('accounts') || [];
@@ -530,9 +600,10 @@ app.whenReady().then(async () => {
   createTray();
 
   // Periodic always-on-top re-assertion to recover from z-order disruptions
-  // (hidden window spawns, window manager shortcuts, alt-tab, etc.)
+  // (hidden window spawns, window manager shortcuts, alt-tab, etc.).
+  // Only re-asserts when the user has the setting enabled.
   setInterval(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed() && store.get('settings.alwaysOnTop', true)) {
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   }, 5000);

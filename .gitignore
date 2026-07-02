@@ -12,9 +12,11 @@ out/
 Thumbs.db
 desktop.ini
 
-# IDE
+# IDE / tooling
 .vscode/
 .idea/
+.claude/
+.playwright-mcp/
 *.swp
 *.swo
 *~
@@ -36,3 +38,6 @@ yarn-error.log*
 # Cache
 .cache/
 .temp/
+
+# Terminal Paste Image folder
+.cp-images/

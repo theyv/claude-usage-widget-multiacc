@@ -6,7 +6,14 @@ let latestUsageData = {}; // Map of accountId -> usage data
 let isExpanded = false;
 let expiredAccounts = {}; // Map of accountId -> boolean (true if expired)
 const inFlightFetches = new Set(); // accountIds currently being fetched — prevents overlapping calls
-const UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+// User settings (populated from main process on init)
+let settings = {};
+let warnThreshold = 75;
+let dangerThreshold = 90;
+let isCompactMode = false;
+const alertFired = {}; // Map of accountId -> { session_warn, session_danger, weekly_warn, weekly_danger }
+const DEFAULT_REFRESH_SECONDS = 300;
 const WIDGET_HEIGHT_COLLAPSED = 110;
 const WIDGET_ROW_HEIGHT = 24;
 const ACCOUNT_SECTION_HEIGHT = 90; // Height per account section
@@ -46,12 +53,48 @@ const elements = {
     settingsAccountsList: document.getElementById('settingsAccountsList'),
     addAccountBtn: document.getElementById('addAccountBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
-    coffeeBtn: document.getElementById('coffeeBtn')
+    coffeeBtn: document.getElementById('coffeeBtn'),
+
+    // Settings controls
+    autoStartToggle: document.getElementById('autoStartToggle'),
+    autoStartCol: document.getElementById('autoStartCol'),
+    autoStartHint: document.getElementById('autoStartHint'),
+    minimizeToTrayToggle: document.getElementById('minimizeToTrayToggle'),
+    trayLabel: document.getElementById('trayLabel'),
+    alwaysOnTopToggle: document.getElementById('alwaysOnTopToggle'),
+    usageAlertsToggle: document.getElementById('usageAlertsToggle'),
+    compactModeToggle: document.getElementById('compactModeToggle'),
+    themeBtns: document.querySelectorAll('.theme-btn'),
+    timeFormat: document.getElementById('timeFormat'),
+    weeklyDateFormat: document.getElementById('weeklyDateFormat'),
+    refreshInterval: document.getElementById('refreshInterval'),
+    warnThreshold: document.getElementById('warnThreshold'),
+    dangerThreshold: document.getElementById('dangerThreshold'),
+    settingsVersionLabel: document.getElementById('settingsVersionLabel')
 };
 
 // Initialize
 async function init() {
     setupEventListeners();
+
+    // Load settings first so theme/thresholds/format apply before first render
+    settings = await window.electronAPI.getSettings();
+    warnThreshold = settings.warnThreshold ?? 75;
+    dangerThreshold = settings.dangerThreshold ?? 90;
+    applyTheme(settings.theme);
+    applyCompactMode(!!settings.compactMode);
+    if (window.electronAPI.platform === 'darwin' && elements.trayLabel) {
+        elements.trayLabel.textContent = 'Hide from Dock';
+    }
+
+    // Version label in settings footer
+    try {
+        const version = await window.electronAPI.getAppVersion();
+        if (elements.settingsVersionLabel) {
+            elements.settingsVersionLabel.textContent = `Version v${version}`;
+        }
+    } catch (e) { /* ignore */ }
+
     accounts = await window.electronAPI.getCredentials();
 
     if (accounts && accounts.length > 0) {
@@ -59,6 +102,7 @@ async function init() {
         renderAccounts();
         await fetchAllUsageData();
         startAutoUpdate();
+        startCountdown();
     } else {
         showLoginRequired();
     }
@@ -112,13 +156,27 @@ function setupEventListeners() {
 
 
     // Settings calls
-    elements.settingsBtn.addEventListener('click', () => {
+    elements.settingsBtn.addEventListener('click', async () => {
+        await loadSettings();
         renderSettingsAccounts();
         elements.settingsOverlay.style.display = 'flex';
+        // Give the settings panel a comfortable working height
+        window.electronAPI.resizeWindow(520);
     });
 
-    elements.closeSettingsBtn.addEventListener('click', () => {
+    elements.closeSettingsBtn.addEventListener('click', async () => {
+        await saveSettings();
         elements.settingsOverlay.style.display = 'none';
+        resizeWidget();
+    });
+
+    // Theme buttons — highlight selection immediately (persisted on Done)
+    elements.themeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            elements.themeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyTheme(btn.dataset.theme);
+        });
     });
 
     elements.logoutBtn.addEventListener('click', async () => {
@@ -287,7 +345,7 @@ async function fetchUsageData(accountId) {
     inFlightFetches.add(accountId);
     try {
         debugLog('Calling electronAPI.fetchUsageData...');
-        const data = await window.electronAPI.fetchUsageData(accountId);
+        const data = normalizeUsageData(await window.electronAPI.fetchUsageData(accountId));
         debugLog('Received usage data for account', accountId, ':', data);
         latestUsageData[accountId] = data;
         // Clear expired state if fetch succeeds
@@ -295,6 +353,7 @@ async function fetchUsageData(accountId) {
             delete expiredAccounts[accountId];
         }
         updateAccountUI(accountId, data);
+        checkUsageAlerts(accountId, data);
     } catch (error) {
         console.error('Error fetching usage data for account', accountId, ':', error);
         if (error.message.includes('SessionExpired') || error.message.includes('Unauthorized')) {
@@ -341,6 +400,15 @@ function renderAccounts() {
                 <button class="reconnect-btn" data-account-id="${account.id}">Reconnect</button>
             </div>
             ` : `
+            <!-- Column Headers -->
+            <div class="usage-headers">
+                <span></span>
+                <span class="col-header progress-header">Used</span>
+                <span class="col-header right">%</span>
+                <span class="col-header">Resets In</span>
+                <span class="col-header right">Resets At</span>
+            </div>
+
             <!-- Session Usage -->
             <div class="usage-section">
                 <span class="usage-label">Current Session</span>
@@ -356,6 +424,7 @@ function renderAccounts() {
                             style="stroke-dasharray: 63; stroke-dashoffset: 63" />
                     </svg>
                 </div>
+                <span class="resets-at-text session-resets-at-${account.id}">—</span>
             </div>
 
             <!-- Weekly Usage -->
@@ -373,6 +442,7 @@ function renderAccounts() {
                             style="stroke-dasharray: 63; stroke-dashoffset: 63" />
                     </svg>
                 </div>
+                <span class="resets-at-text weekly-resets-at-${account.id}">—</span>
             </div>
 
             `}
@@ -409,6 +479,8 @@ function renderAccounts() {
                 
                 arrow.classList.toggle('expanded', !isExpanded);
                 section.style.display = !isExpanded ? 'block' : 'none';
+                // Populate the extra-row countdowns immediately on expand
+                if (!isExpanded) refreshExtraTimersForAccount(accountId);
                 resizeWidget();
             });
         }
@@ -504,10 +576,15 @@ function updateAccountUI(accountId, data) {
     const sessionPercentage = document.querySelector(`.session-percentage-${accountId}`);
     const sessionTimer = document.querySelector(`.session-timer-${accountId}`);
     const sessionTimeText = document.querySelector(`.session-time-text-${accountId}`);
+    const sessionResetsAtEl = document.querySelector(`.session-resets-at-${accountId}`);
 
     if (sessionProgress && sessionPercentage && sessionTimer && sessionTimeText) {
         updateProgressBar(sessionProgress, sessionPercentage, sessionUtilization);
         updateTimer(sessionTimer, sessionTimeText, sessionResetsAt, 5 * 60);
+    }
+    if (sessionResetsAtEl) {
+        sessionResetsAtEl.textContent = formatResetsAt(sessionResetsAt, false);
+        sessionResetsAtEl.style.opacity = sessionResetsAt ? '1' : '0.4';
     }
 
     // Weekly data
@@ -518,10 +595,15 @@ function updateAccountUI(accountId, data) {
     const weeklyPercentage = document.querySelector(`.weekly-percentage-${accountId}`);
     const weeklyTimer = document.querySelector(`.weekly-timer-${accountId}`);
     const weeklyTimeText = document.querySelector(`.weekly-time-text-${accountId}`);
+    const weeklyResetsAtEl = document.querySelector(`.weekly-resets-at-${accountId}`);
 
     if (weeklyProgress && weeklyPercentage && weeklyTimer && weeklyTimeText) {
         updateProgressBar(weeklyProgress, weeklyPercentage, weeklyUtilization, true);
         updateTimer(weeklyTimer, weeklyTimeText, weeklyResetsAt, 7 * 24 * 60);
+    }
+    if (weeklyResetsAtEl) {
+        weeklyResetsAtEl.textContent = formatResetsAt(weeklyResetsAt, true);
+        weeklyResetsAtEl.style.opacity = weeklyResetsAt ? '1' : '0.4';
     }
 
     // Build extra rows
@@ -549,6 +631,7 @@ function buildExtraRowsForAccount(accountId, data) {
         const utilization = value.utilization || 0;
         const resetsAt = value.resets_at;
         const colorClass = config.color;
+        const isWeekly = key.includes('seven_day');
 
         const row = document.createElement('div');
         row.className = 'usage-section';
@@ -559,18 +642,19 @@ function buildExtraRowsForAccount(accountId, data) {
             </div>
             <span class="usage-percentage">${Math.round(utilization)}%</span>
             <div class="timer-container">
-                <div class="timer-text extra-timer-${accountId}-${key}" data-resets="${resetsAt || ''}" data-total="${key.includes('seven_day') ? 7 * 24 * 60 : 5 * 60}">--:--</div>
+                <div class="timer-text extra-timer-${accountId}-${key}" data-resets="${resetsAt || ''}" data-total="${isWeekly ? 7 * 24 * 60 : 5 * 60}">--:--</div>
                 <svg class="mini-timer" width="16" height="16" viewBox="0 0 24 24">
                     <circle class="timer-bg" cx="12" cy="12" r="10" />
                     <circle class="timer-progress extra-timer-circle-${accountId}-${key} ${colorClass}" cx="12" cy="12" r="10"
                         style="stroke-dasharray: 63; stroke-dashoffset: 63" />
                 </svg>
             </div>
+            <span class="resets-at-text" style="opacity: ${resetsAt ? '1' : '0.4'}">${formatResetsAt(resetsAt, isWeekly)}</span>
         `;
 
         const progressEl = row.querySelector('.progress-fill');
-        if (utilization >= 90) progressEl.classList.add('danger');
-        else if (utilization >= 75) progressEl.classList.add('warning');
+        if (utilization >= dangerThreshold) progressEl.classList.add('danger');
+        else if (utilization >= warnThreshold) progressEl.classList.add('warning');
 
         extraRowsContainer.appendChild(row);
         count++;
@@ -588,14 +672,16 @@ function refreshExtraTimersForAccount(accountId) {
     const extraRowsContainer = document.querySelector(`.extra-rows-${accountId}`);
     if (!extraRowsContainer) return;
 
-    const timerTexts = extraRowsContainer.querySelectorAll('.timer-text');
-    const timerCircles = extraRowsContainer.querySelectorAll('.timer-progress');
-
-    timerTexts.forEach((textEl, i) => {
+    // Pair each row's timer text with its own circle. Pairing the two
+    // querySelectorAll lists by index breaks as soon as one row has a text
+    // but no circle, leaving every later row's timer stuck at --:--.
+    extraRowsContainer.querySelectorAll('.usage-section').forEach((row) => {
+        const textEl = row.querySelector('.timer-text');
+        const circleEl = row.querySelector('.timer-progress');
+        if (!textEl || !circleEl) return;
         const resetsAt = textEl.dataset.resets;
         const totalMinutes = parseInt(textEl.dataset.total);
-        const circleEl = timerCircles[i];
-        if (resetsAt && circleEl) {
+        if (resetsAt) {
             updateTimer(circleEl, textEl, resetsAt, totalMinutes);
         }
     });
@@ -620,6 +706,198 @@ const EXTRA_ROW_CONFIG = {
     seven_day_oauth_apps: { label: 'OAuth Apps (7d)', color: 'weekly' },
     extra_usage: { label: 'Extra Usage', color: 'extra' },
 };
+
+// claude.ai now reports per-model weekly limits (e.g. Fable) as entries in the
+// `limits` array with kind "weekly_scoped"; the legacy seven_day_<model> fields
+// arrive null for those models. Map each scoped weekly limit onto a synthetic
+// seven_day_* field so it renders like any other extra row. Deliberately generic:
+// whatever scoped limits Anthropic sends next render without another release.
+function normalizeUsageData(data) {
+    if (!data) return data;
+    for (const limit of (data.limits || [])) {
+        if (limit.kind !== 'weekly_scoped' || limit.percent == null) continue;
+        const scopeName = limit.scope?.model?.display_name || limit.scope?.surface || 'Scoped';
+        const key = 'seven_day_' + scopeName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        if (!EXTRA_ROW_CONFIG[key]) {
+            EXTRA_ROW_CONFIG[key] = { label: `${scopeName} (7d)`, color: 'opus' };
+            // Re-insert extra_usage so model rows stay grouped above it
+            const extraUsage = EXTRA_ROW_CONFIG.extra_usage;
+            delete EXTRA_ROW_CONFIG.extra_usage;
+            EXTRA_ROW_CONFIG.extra_usage = extraUsage;
+        }
+        // Only fill the synthetic field if the legacy field didn't already provide data
+        if (!data[key] || data[key].utilization === undefined) {
+            data[key] = { utilization: limit.percent, resets_at: limit.resets_at };
+        }
+    }
+    return data;
+}
+
+// Format reset date for the "Resets At" column, honoring the user's settings.
+// Session (5h): shows time like "3:59 PM" / "15:59".
+// Weekly (7d): shows date per weeklyDateFormat ("Mar 13", "Fri Mar 13", or with time).
+function formatResetsAt(resetsAt, isWeekly) {
+    if (!resetsAt) return '—';
+    const date = new Date(resetsAt);
+    if (isNaN(date)) return '—';
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const timeFormat = settings.timeFormat || '12h';
+    const weeklyDateFormat = settings.weeklyDateFormat || 'date';
+
+    const formatTime = (d) => {
+        if (timeFormat === '24h') {
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        }
+        let hours = d.getHours();
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${hours}:${minutes} ${ampm}`;
+    };
+
+    if (isWeekly) {
+        const dayStr = days[date.getDay()];
+        const monthStr = months[date.getMonth()];
+        const dayNum = date.getDate();
+        if (weeklyDateFormat === 'date-day') return `${dayStr} ${monthStr} ${dayNum}`;
+        if (weeklyDateFormat === 'date-day-time') return `${dayStr} ${monthStr} ${dayNum} ${formatTime(date)}`;
+        return `${monthStr} ${dayNum}`; // default: 'date'
+    }
+    return formatTime(date);
+}
+
+// ── Settings ────────────────────────────────────────────────────────────
+
+// Populate the settings controls from stored settings.
+async function loadSettings() {
+    settings = await window.electronAPI.getSettings();
+    const isLinux = window.electronAPI.platform === 'linux';
+    const isPortable = window.electronAPI.isPortable;
+    const autoStartUnsupported = isLinux || isPortable;
+
+    elements.autoStartToggle.checked = autoStartUnsupported ? false : !!settings.autoStart;
+    elements.autoStartToggle.disabled = autoStartUnsupported;
+    if (elements.autoStartCol) {
+        elements.autoStartCol.classList.toggle('settings-col-disabled', autoStartUnsupported);
+    }
+    if (elements.autoStartHint) {
+        elements.autoStartHint.style.display = autoStartUnsupported ? 'inline' : 'none';
+        elements.autoStartHint.textContent = isPortable ? 'Not in portable mode' : 'Not on Linux';
+    }
+
+    elements.minimizeToTrayToggle.checked = !!settings.minimizeToTray;
+    elements.alwaysOnTopToggle.checked = settings.alwaysOnTop !== false;
+    elements.usageAlertsToggle.checked = settings.usageAlerts !== false;
+    elements.compactModeToggle.checked = !!settings.compactMode;
+    elements.timeFormat.value = settings.timeFormat || '12h';
+    elements.weeklyDateFormat.value = settings.weeklyDateFormat || 'date';
+    elements.refreshInterval.value = String(settings.refreshInterval || '300');
+    elements.warnThreshold.value = settings.warnThreshold ?? 75;
+    elements.dangerThreshold.value = settings.dangerThreshold ?? 90;
+
+    warnThreshold = settings.warnThreshold ?? 75;
+    dangerThreshold = settings.dangerThreshold ?? 90;
+
+    elements.themeBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === (settings.theme || 'dark'));
+    });
+    applyTheme(settings.theme);
+}
+
+// Read the settings controls, persist them, and apply immediately.
+async function saveSettings() {
+    const activeThemeBtn = document.querySelector('.theme-btn.active');
+    let warn = parseInt(elements.warnThreshold.value);
+    let danger = parseInt(elements.dangerThreshold.value);
+    if (isNaN(warn) || warn < 1 || warn > 99) warn = 75;
+    if (isNaN(danger) || danger < 1 || danger > 99) danger = 90;
+    warnThreshold = warn;
+    dangerThreshold = danger;
+
+    const compactToggle = elements.compactModeToggle.checked;
+    if (compactToggle !== isCompactMode) {
+        applyCompactMode(compactToggle);
+    }
+
+    const newSettings = {
+        autoStart: (window.electronAPI.platform === 'linux' || window.electronAPI.isPortable)
+            ? false : elements.autoStartToggle.checked,
+        minimizeToTray: elements.minimizeToTrayToggle.checked,
+        alwaysOnTop: elements.alwaysOnTopToggle.checked,
+        usageAlerts: elements.usageAlertsToggle.checked,
+        compactMode: isCompactMode,
+        theme: activeThemeBtn ? activeThemeBtn.dataset.theme : 'dark',
+        timeFormat: elements.timeFormat.value || '12h',
+        weeklyDateFormat: elements.weeklyDateFormat.value || 'date',
+        refreshInterval: elements.refreshInterval.value || '300',
+        warnThreshold: warn,
+        dangerThreshold: danger
+    };
+
+    const result = await window.electronAPI.saveSettings(newSettings);
+    settings = (result && result.settings) ? result.settings : newSettings;
+    applyTheme(settings.theme);
+
+    // Re-render so new thresholds, time/date format and compact layout take effect
+    renderAccounts();
+    for (const accountId of Object.keys(latestUsageData)) {
+        if (latestUsageData[accountId]) {
+            updateAccountUI(accountId, latestUsageData[accountId]);
+        }
+    }
+
+    // Restart auto-update in case the interval changed
+    startAutoUpdate();
+}
+
+// Apply the light/dark theme to the document body.
+function applyTheme(theme) {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const useDark = !theme || theme === 'dark' || (theme === 'system' && prefersDark);
+    document.body.classList.toggle('theme-light', !useDark);
+}
+
+// Toggle compact (denser) layout.
+function applyCompactMode(compact) {
+    isCompactMode = compact;
+    document.body.classList.toggle('compact-mode', compact);
+    resizeWidget();
+}
+
+// Fire desktop notifications when an account crosses the warn/danger thresholds.
+// Flags are tracked per account and reset once usage drops back below warn.
+function checkUsageAlerts(accountId, data) {
+    if (!settings.usageAlerts) return;
+    if (!alertFired[accountId]) alertFired[accountId] = {};
+    const flags = alertFired[accountId];
+    const account = accounts.find(a => a.id === accountId);
+    const label = (account && account.nickname) || 'Account';
+
+    const sessionPct = data.five_hour?.utilization || 0;
+    const weeklyPct = data.seven_day?.utilization || 0;
+
+    if (sessionPct < warnThreshold) { flags.session_warn = false; flags.session_danger = false; }
+    if (weeklyPct < warnThreshold) { flags.weekly_warn = false; flags.weekly_danger = false; }
+
+    if (sessionPct >= dangerThreshold && !flags.session_danger) {
+        flags.session_danger = true;
+        flags.session_warn = true;
+        window.electronAPI.showNotification('Claude Usage Widget', `${label}: session usage at ${Math.round(sessionPct)}% — running low`);
+    } else if (sessionPct >= warnThreshold && !flags.session_warn) {
+        flags.session_warn = true;
+        window.electronAPI.showNotification('Claude Usage Widget', `${label}: session usage reached ${Math.round(sessionPct)}%`);
+    }
+
+    if (weeklyPct >= dangerThreshold && !flags.weekly_danger) {
+        flags.weekly_danger = true;
+        flags.weekly_warn = true;
+        window.electronAPI.showNotification('Claude Usage Widget', `${label}: weekly usage at ${Math.round(weeklyPct)}% — running low`);
+    } else if (weeklyPct >= warnThreshold && !flags.weekly_warn) {
+        flags.weekly_warn = true;
+        window.electronAPI.showNotification('Claude Usage Widget', `${label}: weekly usage reached ${Math.round(weeklyPct)}%`);
+    }
+}
 
 function resizeWidget() {
     // Wait for DOM to update
@@ -708,9 +986,9 @@ function updateProgressBar(progressElement, percentageElement, value, isWeekly =
 
     // Update color based on usage level
     progressElement.classList.remove('warning', 'danger');
-    if (percentage >= 90) {
+    if (percentage >= dangerThreshold) {
         progressElement.classList.add('danger');
-    } else if (percentage >= 75) {
+    } else if (percentage >= warnThreshold) {
         progressElement.classList.add('warning');
     }
 }
@@ -806,9 +1084,10 @@ function showMainContent() {
 // Auto-update management
 function startAutoUpdate() {
     stopAutoUpdate();
+    const seconds = parseInt(settings.refreshInterval) || DEFAULT_REFRESH_SECONDS;
     updateInterval = setInterval(() => {
         fetchAllUsageData();
-    }, UPDATE_INTERVAL);
+    }, seconds * 1000);
 }
 
 function stopAutoUpdate() {

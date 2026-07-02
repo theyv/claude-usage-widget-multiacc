@@ -1,211 +1,107 @@
-# Claude Usage Widget
+# Claude Usage Widget — Multi-Account
 
-A beautiful, standalone Windows desktop widget that displays your Claude.ai usage statistics in real-time.
+A lightweight desktop widget that displays your Claude.ai usage statistics in real-time, with support for **multiple accounts** side by side.
+
+> This is a community fork of [SlavomirDurej/claude-usage-widget](https://github.com/SlavomirDurej/claude-usage-widget), adding multi-account support, a full settings panel, per-model weekly limits, and reset-time display.
 
 ![Claude Usage Widget](assets/claude-usage-screenshot.jpg)
 
 ## Features
 
-- 🎯 **Real-time Usage Tracking** - Monitor both session and weekly usage limits
-- 📊 **Visual Progress Bars** - Clean, gradient progress indicators
-- ⏱️ **Countdown Timers** - Circular timers showing time until reset
-- 🔄 **Auto-refresh** - Updates every 5 minutes automatically
-- 🎨 **Modern UI** - Sleek, draggable widget with dark theme
-- 🔒 **Secure** - Encrypted credential storage
-- 📍 **Always on Top** - Stays visible across all workspaces
-- 💾 **System Tray** - Minimizes to tray for easy access
+- 👥 **Multiple accounts** — Track any number of Claude.ai accounts in a single widget, each with its own nickname
+- 🎯 **Real-time tracking** — Monitor 5-hour session and weekly usage limits
+- 🧠 **Per-model weekly limits** — Separate bars for Opus / Sonnet / Fable when your plan reports them
+- 🕒 **Reset times** — See exactly when each limit resets (12h/24h, several date formats)
+- 📊 **Visual progress bars** with configurable warn/critical thresholds
+- 🔔 **Usage alerts** — Optional desktop notifications when you cross a threshold
+- 🎨 **Themes** — Dark / Light / System, plus a Compact mode
+- 🔄 **Auto-refresh** — Configurable interval (1–10 min)
+- 📍 **Always on top** & 🫥 **Hide from taskbar** (optional)
+- 🚀 **Launch at startup** (optional)
+- 🔒 **Local, encrypted credential storage** — nothing is sent to third parties
 
 ## Installation
 
-### Download Pre-built Release
-1. Download the latest `Claude-Usage-Widget-Setup.exe` from [Releases](https://github.com/SlavomirDurej/claude-usage-widget/releases)
+### Download a pre-built release
+1. Download the latest `Claude Usage Widget Setup <version>.exe` (or the portable build) from [Releases](https://github.com/theyv/claude-usage-widget-multiacc/releases)
 2. Run the installer
-3. Launch "Claude Usage Widget" from Start Menu
+3. Launch **Claude Usage Widget** from the Start Menu
 
-### Build from Source
+> Windows may show "Windows protected your PC" for unsigned apps — click **More info → Run anyway**.
 
-**Prerequisites:**
-- Node.js 18+ ([Download](https://nodejs.org))
-- npm (comes with Node.js)
+### Build from source
 
-**Steps:**
+**Prerequisites:** Node.js 18+ and npm.
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/claude-usage-widget.git
-cd claude-usage-widget
-
-# Install dependencies
+git clone https://github.com/theyv/claude-usage-widget-multiacc.git
+cd claude-usage-widget-multiacc
 npm install
 
-# Run in development mode
+# Run in development
 npm start
 
-# Build installer for Windows
+# Build a Windows installer + portable build (run on Windows)
 npm run build:win
 ```
 
-The installer will be created in the `dist/` folder.
+The output lands in `dist/`. Building the Windows `.exe` must run on Windows (or CI) — electron-builder needs native Windows tooling. This repo includes a GitHub Actions workflow (`.github/workflows/build-windows.yml`) that builds on `windows-latest` for pushes, tags (`v*`), and manual runs.
 
 ## Usage
 
-### First Launch
+### Connecting an account
+1. Launch the widget and click **Log in**.
+2. If the embedded login is blocked (Claude.ai sometimes blocks embedded browsers), use **Manual**: open claude.ai → `F12` → Application → Cookies → copy the `sessionKey` value and paste it in.
+3. Optionally give the account a nickname.
+4. Add more accounts anytime from **Settings → Connected Accounts**.
 
-1. Launch the widget
-2. Click "Login to Claude" when prompted
-3. A browser window will open - login to your Claude.ai account
-4. The widget will automatically capture your session
-5. Usage data will start displaying immediately
+### Controls
+- **Drag** the title bar to move the widget
+- **Refresh** icon updates data immediately
+- **Minimize** hides to the system tray
+- **Settings** (⚙️) opens all options
 
-### Widget Controls
+## Settings
 
-- **Drag** - Click and drag the title bar to move the widget
-- **Refresh** - Click the refresh icon to update data immediately
-- **Minimize** - Click the minus icon to hide to system tray
-- **Close** - Click the X to minimize to tray (doesn't exit)
-
-### System Tray Menu
-
-Right-click the tray icon for:
-- Show/Hide widget
-- Refresh usage data
-- Re-login (if session expires)
-- Settings (coming soon)
-- Exit application
-
-## Understanding the Display
-
-### Current Session
-- **Progress Bar** - Shows usage from 0-100%
-- **Timer** - Time remaining until 5-hour session resets
-- **Color Coding**:
-  - Purple: Normal usage (0-74%)
-  - Orange: High usage (75-89%)
-  - Red: Critical usage (90-100%)
-
-### Weekly Limit
-- **Progress Bar** - Shows weekly usage from 0-100%
-- **Timer** - Time remaining until weekly reset (Wednesdays 7:00 AM)
-- **Same color coding** as session usage
-
-## Configuration
-
-### Auto-start on Windows Boot
-
-1. Press `Win + R`
-2. Type `shell:startup` and press Enter
-3. Create a shortcut to the widget executable in this folder
-
-### Custom Refresh Interval
-
-Edit `src/renderer/app.js`:
-```javascript
-const UPDATE_INTERVAL = 5 * 60 * 1000; // Change to your preference (in milliseconds)
-```
-
-## Troubleshooting
-
-### "Login Required" keeps appearing
-- Your Claude.ai session may have expired
-- Click "Login to Claude" to re-authenticate
-- Check that you're logging into the correct account
-
-### Widget not updating
-- Check your internet connection
-- Click the refresh button manually
-- Ensure Claude.ai is accessible in your region
-- Try re-logging in from the system tray menu
-
-### Widget position not saving
-- Window position is now saved automatically when you drag it
-- Position will be restored when you restart the app
-
-### Build errors
-```bash
-# Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
-```
+| Setting | Description |
+|---|---|
+| Launch at startup | Start the widget when Windows boots |
+| Hide from taskbar | Keep the widget out of the taskbar (tray only) |
+| Always on top | Keep the widget above other windows |
+| Usage Alerts | Desktop notification when a limit crosses a threshold |
+| Compact mode | Denser layout for small screens |
+| Theme | Dark / Light / System |
+| Time format | 12h (3:59 PM) or 24h (15:59) |
+| Date format | `Mar 13` / `Fri Mar 13` / `Fri Mar 13 + time` |
+| Auto-refresh | Every 1 / 2 / 5 / 10 minutes |
+| Warn at | Warning (%) and critical (%) thresholds for the progress bars |
 
 ## Privacy & Security
 
-- Your session credentials are stored **locally only** using encrypted storage
-- No data is sent to any third-party servers
-- The widget only communicates with Claude.ai official API
-- Session cookies are stored using Electron's secure storage
-- **Logout** completely removes the session key from encrypted storage, clears all Claude.ai cookies, and wipes Electron session storage (localStorage, sessionStorage, cacheStorage) so nothing lingers on shared machines
+- Session credentials are stored **locally only**, encrypted via `electron-store`.
+- No telemetry. The widget only talks to the official Claude.ai API.
+- **Log Out All** removes stored session keys, clears Claude.ai cookies, and wipes Electron session storage.
 
-### Session Key Storage Details
+The encryption key is embedded in the app, which protects against casual file inspection but not a determined attacker with source access. On shared machines, always log out when finished.
 
-The `sessionKey` (a bearer token for Claude.ai) is stored in two places:
-
-| Location | Purpose | Cleared on logout? |
-|---|---|---|
-| `%APPDATA%/claude-usage-widget/config.json` (encrypted via `electron-store`) | Persists credentials between app restarts | Yes |
-| Electron in-memory session cookie (`.claude.ai` domain, `secure`, `httpOnly`) | Used by hidden BrowserWindow for API requests | Yes |
-
-The encryption key is embedded in the application. This protects against casual file inspection but not against a determined attacker with access to the source code. For shared machines, always log out when finished.
+**Storage location:** `%APPDATA%/claude-usage-widget/config.json` (encrypted)
 
 ## Technical Details
 
-**Built with:**
-- Electron 28.0.0
-- Pure JavaScript (no framework overhead)
-- Native Node.js APIs
-- electron-store for secure storage
+- **Electron** (frameless, no framework — pure JS renderer)
+- **electron-store** for encrypted storage
+- Usage is fetched through a hidden `BrowserWindow` (see `src/fetch-via-window.js`) to ride the authenticated browser session and pass Cloudflare's bot checks.
 
-**API Endpoint:**
-```
-https://claude.ai/api/organizations/{org_id}/usage
-```
-
-**Storage Location:**
-```
-%APPDATA%/claude-usage-widget/config.json (encrypted)
-```
-
-**Debug Mode:**
-
-To enable verbose logging, run with the `--debug` flag or set the `DEBUG_LOG=1` environment variable:
-```bash
-# Via flag
-electron . --debug
-
-# Via env var
-DEBUG_LOG=1 npm start
-```
-
-## Roadmap
-
-- [ ] macOS support
-- [ ] Linux support
-- [ ] Custom themes
-- [ ] Notification alerts at usage thresholds
-- [x] Remember window position
-- [ ] Settings panel
-- [ ] Usage history graphs
-- [ ] Multiple account support
-- [ ] Keyboard shortcuts
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Debug logging:** run with `--debug` or set `DEBUG_LOG=1`.
 
 ## License
 
-MIT License - feel free to use and modify as needed.
+MIT — see below. Do whatever you like with it.
 
 ## Disclaimer
 
-This is an unofficial tool and is not affiliated with or endorsed by Anthropic. Use at your own discretion.
-
-## Support
-
-If you encounter issues:
-1. Check the [Issues](issues) page
-2. Create a new issue with details about your problem
-3. Include your OS version and any error messages
+Unofficial tool. Not affiliated with or endorsed by Anthropic. Use at your own discretion.
 
 ---
 
-Made with ❤️ for the Claude.ai community
+Made with ❤️ for the Claude.ai community.

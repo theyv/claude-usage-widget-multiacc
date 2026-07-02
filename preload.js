@@ -30,5 +30,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // API
   fetchUsageData: (accountId) => ipcRenderer.invoke('fetch-usage-data', accountId),
-  openExternal: (url) => ipcRenderer.send('open-external', url)
+  openExternal: (url) => ipcRenderer.send('open-external', url),
+
+  // Platform
+  platform: process.platform,
+  isPortable: process.platform === 'win32' && !!process.env.PORTABLE_EXECUTABLE_FILE,
+
+  // Settings
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
+  // Notifications
+  showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body })
 });
